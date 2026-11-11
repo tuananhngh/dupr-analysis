@@ -181,31 +181,39 @@ def chart_rating(a: Analysis) -> str:
     return _div(_layout(fig, f"{a.fmt.title()} rating over time", "DUPR rating", 480))
 
 
+def _end_of_day(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
+    """One row per day (the value after that day's last match), so days with several matches
+    don't draw vertical spikes."""
+    d = df.assign(day=df["date"].dt.normalize())[["day", *cols]]
+    return d.groupby("day", as_index=False).last().dropna(subset=cols, how="all")
+
+
 def chart_win_form(a: Analysis) -> str:
     df, w = a.matches, a.summary["rolling_window"]
-    exp_roll = df["exp_win"].rolling(w, min_periods=w).mean() * 100
+    df = df.assign(exp_roll=df["exp_win"].rolling(w, min_periods=max(3, w // 2)).mean() * 100)
+    daily = _end_of_day(df, ["rolling_win_pct", "exp_roll"])
     fig = go.Figure()
     fig.add_scatter(
-        x=df["date"],
-        y=df["rolling_win_pct"],
-        name=f"Your win % (last {w} matches)",
+        x=daily["day"],
+        y=daily["rolling_win_pct"],
+        name=f"Your win % (last {w})",
         line=dict(color=BLUE, width=3),
         hovertemplate="%{y:.0f}%",
     )
-    if exp_roll.notna().any():
+    if daily["exp_roll"].notna().any():
         fig.add_scatter(
-            x=df["date"],
-            y=exp_roll,
-            name="Expected win % (from ratings)",
+            x=daily["day"],
+            y=daily["exp_roll"],
+            name="Expected win %",
             line=dict(color=ORANGE, width=2, dash="dot"),
             hovertemplate="%{y:.0f}%",
         )
     fig.add_hline(y=50, line=dict(color=MUTED, width=1, dash="dot"))
-    last = df.dropna(subset=["rolling_win_pct"]).tail(1)
+    last = daily.dropna(subset=["rolling_win_pct"]).tail(1)
     if len(last):
         _label(
             fig,
-            last["date"].iloc[0],
+            last["day"].iloc[0],
             last["rolling_win_pct"].iloc[0],
             f"Now {last['rolling_win_pct'].iloc[0]:.0f}%",
             ay=-34,
@@ -213,13 +221,12 @@ def chart_win_form(a: Analysis) -> str:
             color=BLUE,
         )
     fig.update_yaxes(range=[-5, 105], ticksuffix="%")
-    return _div(
-        _layout(fig, "Winning: your win % vs what the ratings predict", "Win %", 400)
-    )
+    return _div(_layout(fig, "Win %: actual vs predicted", "Win %", 400))
 
 
 def chart_point_form(a: Analysis) -> str:
     df, w = a.matches, a.summary["rolling_window"]
+    daily = _end_of_day(df, ["rolling_point_share"])
     fig = go.Figure()
     fig.add_scatter(
         x=df["date"],
@@ -230,9 +237,9 @@ def chart_point_form(a: Analysis) -> str:
         hovertemplate="%{y:.0f}%<extra>Match</extra>",
     )
     fig.add_scatter(
-        x=df["date"],
-        y=df["rolling_point_share"],
-        name=f"Average of last {w} matches",
+        x=daily["day"],
+        y=daily["rolling_point_share"],
+        name=f"Average (last {w})",
         line=dict(color=BLUE, width=3),
         hovertemplate="%{y:.1f}%<extra>Average</extra>",
     )
@@ -240,14 +247,14 @@ def chart_point_form(a: Analysis) -> str:
         y=50,
         line=dict(color=MUTED, width=1, dash="dot"),
         annotation_text="50% = even",
-        annotation_position="bottom right",
+        annotation_position="bottom left",
         annotation_font=dict(size=12, color=INK2),
     )
-    last = df.dropna(subset=["rolling_point_share"]).tail(1)
+    last = daily.dropna(subset=["rolling_point_share"]).tail(1)
     if len(last):
         _label(
             fig,
-            last["date"].iloc[0],
+            last["day"].iloc[0],
             last["rolling_point_share"].iloc[0],
             f"Now {last['rolling_point_share'].iloc[0]:.1f}%",
             ay=-34,
@@ -257,9 +264,7 @@ def chart_point_form(a: Analysis) -> str:
     lo = min(30, (df["point_share"] * 100).min() - 2)
     hi = max(70, (df["point_share"] * 100).max() + 2)
     fig.update_yaxes(range=[lo, hi], ticksuffix="%")
-    return _div(
-        _layout(fig, "Point win %: share of rally points you win", "Point win %", 400)
-    )
+    return _div(_layout(fig, "Point win %: share of points you win", "Point win %", 400))
 
 
 def chart_opp_results(a: Analysis) -> str:
@@ -488,90 +493,6 @@ def chart_impact(a: Analysis) -> str:
     return _div(_layout(fig, "Rating change per month (months you played)", "Rating change", 400))
 
 
-def chart_expectation(a: Analysis) -> str:
-    db = a.diff_buckets
-    if db is None or db.empty:
-        return ""
-    labels = [str(i) for i in db.index]
-    fig = go.Figure()
-    fig.add_bar(
-        x=labels,
-        y=db["win_pct"],
-        name="Your actual win %",
-        marker=dict(color=BLUE, cornerradius=4),
-        text=[f"{v:.0f}%" for v in db["win_pct"]],
-        textposition="inside",
-        insidetextanchor="end",
-        textangle=0,
-        textfont=dict(color="white"),
-        customdata=db["matches"],
-        hovertemplate="%{y:.0f}% over %{customdata} matches",
-    )
-    fig.add_scatter(
-        x=labels,
-        y=db["expected_pct"],
-        name="Expected win %",
-        mode="lines+markers",
-        line=dict(color=ORANGE, width=2.5),
-        marker=dict(size=9),
-        hovertemplate="%{y:.0f}%",
-    )
-    fig.update_xaxes(title="Your team's rating minus the opponents' team rating")
-    fig.update_yaxes(range=[0, 112], ticksuffix="%")
-    return _div(
-        _layout(fig, "Win % by team rating gap: actual vs expected", "Win %", 400)
-    )
-
-
-def chart_vs_expected(a: Analysis) -> str:
-    df = a.matches
-    if df["exp_win"].isna().all():
-        return ""
-    y = df["perf_vs_exp"]
-    fig = go.Figure()
-    fig.add_scatter(
-        x=df["date"],
-        y=y.clip(lower=0),
-        fill="tozeroy",
-        mode="none",
-        fillcolor="rgba(42,120,214,.15)",
-        hoverinfo="skip",
-        showlegend=False,
-    )
-    fig.add_scatter(
-        x=df["date"],
-        y=y.clip(upper=0),
-        fill="tozeroy",
-        mode="none",
-        fillcolor="rgba(235,104,52,.15)",
-        hoverinfo="skip",
-        showlegend=False,
-    )
-    fig.add_scatter(
-        x=df["date"],
-        y=y,
-        mode="lines",
-        line=dict(color=BLUE, width=2.5),
-        showlegend=False,
-        hovertemplate="%{y:+.1f} wins vs expected<extra></extra>",
-    )
-    fig.add_hline(y=0, line=dict(color=MUTED, width=1))
-    _label(
-        fig,
-        df["date"].iloc[-1],
-        y.iloc[-1],
-        f"{y.iloc[-1]:+.1f} wins",
-        ay=-30,
-        ax=-30,
-        color=BLUE,
-    )
-    return _div(
-        _layout(
-            fig, "Wins above expectation, added up over time", "Wins vs expected", 400
-        )
-    )
-
-
 def chart_partners(a: Analysis) -> str:
     p = a.partners
     if p is None or p.empty:
@@ -691,6 +612,14 @@ AGG_COLS = {
 }
 
 
+def wins_vs_expected_tile(s: dict) -> list[str]:
+    """Actual wins minus the wins the rating gaps predicted, e.g. '+4.4' (71 wins vs ~65 expected)."""
+    exp, above = s.get("expected_wins"), s.get("wins_above_expected")
+    if exp is None or above is None or math.isnan(exp) or math.isnan(above):
+        return []
+    return [tile("Wins vs expected", f"{above:+.1f}", f"{s['wins']} wins vs ~{exp:.0f} expected")]
+
+
 def tile(label: str, value: str, sub: str = "") -> str:
     return f"<div class='tile'><div class='lbl'>{label}</div><div class='val'>{value}</div><div class='sub'>{sub}</div></div>"
 
@@ -779,6 +708,7 @@ def section(a: Analysis) -> str:
             ),
             tile("Trend", f(s.get("trend_per_month"), "{:+.3f}"), "rating per month"),
             tile("Record", f"{s['wins']}–{s['losses']}", f"{s['win_pct']:.0f}% wins"),
+            *wins_vs_expected_tile(s),
             tile(
                 "Point win %",
                 f"{s['point_share']:.1f}%",
@@ -827,10 +757,12 @@ def section(a: Analysis) -> str:
       "number of matches. Months without matches are skipped. Your single best and worst matches are listed in the tables below.")}
 
 <h3>Form</h3>
-{card(chart_win_form(a), f"Blue = how often you actually won over your last {w} matches. Orange dots = how often the "
-      "ratings say you should win. Blue above orange means you are playing above your rating.")}
-{card(chart_point_form(a), "Grey dots are single matches, the blue line is the trend. Point win % changes more smoothly "
-      "than win %: if it rises, your level is improving even before results and rating follow.")}
+<div class="grid2">
+{card(chart_win_form(a), f"Blue = how often you won over your last {w} matches. Orange = how often the ratings say "
+      "you should win. Blue above orange: you are playing above your rating.")}
+{card(chart_point_form(a), "Grey dots = single matches, blue line = trend. Steadier than win %: if it rises, your "
+      "level is improving even before results and rating follow.")}
+</div>
 
 {opponents_section(a)}
 
@@ -838,14 +770,6 @@ def section(a: Analysis) -> str:
 <div class="grid2">
 {card(chart_periods(a), f"Bars: share of matches won each {period}. Line: share of points won.")}
 {card(chart_activity(a), f"How much you played each {period}.")}
-</div>
-
-<h3>Results vs expectation</h3>
-<div class="grid2">
-{card(chart_expectation(a), "Left = matches against stronger teams, right = against weaker teams (your team vs theirs, "
-      "partner included). Blue bars above the orange line mean you win more than the ratings predict.")}
-{card(chart_vs_expected(a), "Goes up when you win matches you were not expected to win, down when you lose matches "
-      "you should have won. A rising line usually means your rating will keep going up.")}
 </div>
 
 <h3>Games and partners</h3>
@@ -889,7 +813,7 @@ h1{font-size:28px;margin:0 0 4px}h2{font-size:23px;margin:44px 0 14px;padding-to
 h3{font-size:18px;margin:36px 0 10px}h4{font-size:16px;margin:4px 0 6px}
 .muted,.sub,header p{color:var(--ink2)}
 .takeaway{font-size:15px;margin:0 0 8px;max-width:900px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:12px}
 .tile,.card{background:var(--surface);border:1px solid var(--line);border-radius:12px}
 .tile{padding:14px 16px}.lbl{font-size:13px;color:var(--ink2)}.val{font-size:26px;font-weight:650;font-variant-numeric:tabular-nums}.sub{font-size:13px}
 .card{padding:10px 10px 4px;margin:12px 0;min-width:0}
