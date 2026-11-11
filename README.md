@@ -54,7 +54,7 @@ It then opens the app with the data gzipped in the URL `#fragment`, which browse
 
 The website ([index.html](index.html)) is a static page. It runs the Python analysis in the browser with
 [Pyodide](https://pyodide.org) (Python, pandas, numpy and plotly compiled to WebAssembly), using the same
-`dupr/*.py` files as the desktop version.
+`dupr/*.py` files as the local version (`app.py`, `analyze.py`).
 
 | Path | What it does |
 |---|---|
@@ -64,22 +64,14 @@ The website ([index.html](index.html)) is a static page. It runs the Python anal
 | `dupr/analysis.py` | All the statistics and the written findings |
 | `dupr/report.py` | Charts and the HTML report |
 | `dupr/pipeline.py` | Decodes the synced data and builds the report |
+| `dupr/demo.py` | Sample data for `analyze.py --demo` |
 | `app.py` | Optional local version of the website (Flask) |
 | `analyze.py` | Rebuild a report from the command line |
-
-### Publish the website (GitHub Pages)
-
-1. Push this repository to GitHub.
-2. In the repository, go to **Settings → Pages**. Under *Build and deployment*, choose **Deploy from a branch**,
-   then branch **main** and folder **/ (root)**, and save.
-3. After a minute the site is live at `https://<your-username>.github.io/<repository-name>/`.
-   Put that link at the top of this README.
-
-The `.nojekyll` file must stay: it tells GitHub Pages to serve files starting with `_` (like `dupr/__init__.py`).
+| `.nojekyll` | Keep it: lets GitHub Pages serve files starting with `_` (like `dupr/__init__.py`) |
 
 ### Run it locally
 
-Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+Requires [uv](https://docs.astral.sh/uv/). It installs Python 3.12+ for you if needed.
 
 ```bash
 uv sync
@@ -87,6 +79,8 @@ uv run app.py                 # local version of the website on http://127.0.0.1
 uv run analyze.py --demo      # report from sample data, no DUPR account needed
 uv run analyze.py             # rebuild the report from the last local sync (data/raw/)
 ```
+
+The local app gives its own **⟳ Sync DUPR (local)** bookmark, which sends the data to `127.0.0.1:8000` instead of the website, so it only works while `app.py` is running.
 
 To test the static website locally: `uv run python -m http.server 8000`, then open <http://127.0.0.1:8000>.
 

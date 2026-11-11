@@ -708,6 +708,17 @@ TIP_BADGE = {
 }
 
 
+def level_note(a: Analysis) -> str:
+    lv = getattr(a, "tip_level", None) or {}
+    if not lv:
+        return ""
+    r = lv.get("rating")
+    if r is None or (isinstance(r, float) and math.isnan(r)):
+        return "Your rating is unknown, so the tips are written for an intermediate level (3.5–4.0)."
+    return (f"Tips are adapted to your level: <b>{lv['name']}</b> ({lv['label']}), "
+            f"based on your current rating of {r:.3f}.")
+
+
 def tips_html(tips: list[dict]) -> str:
     if not tips:
         return "<p class='muted'>Not enough matches yet for specific advice (needs a few dozen games).</p>"
@@ -806,7 +817,7 @@ def section(a: Analysis) -> str:
 <h3>Key findings</h3><ul class="insights">{insights}</ul>
 
 <h3>How to improve</h3>
-<p class="muted">Patterns found in your own matches, with something concrete to try for each.</p>
+<p class="muted">Patterns found in your own matches, with something concrete to try for each. {level_note(a)}</p>
 {tips_html(a.tips)}
 
 <h3>Rating</h3>

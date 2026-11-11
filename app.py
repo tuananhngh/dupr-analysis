@@ -97,10 +97,10 @@ INDEX = BASE.replace("{% block body %}{% endblock %}", """
 <li><b>Once:</b> drag this button to your bookmarks bar
  <span class="small">(show the bar with ⌘⇧B on Mac, Ctrl+Shift+B on Windows)</span><br>
  <a class="bm" href="{{ bookmarklet }}"
-    onclick="alert('Drag this button to your bookmarks bar, then click it while you are on dashboard.dupr.com.'); return false;">⟳ Sync DUPR</a></li>
+    onclick="alert('Drag this button to your bookmarks bar, then click it while you are on dashboard.dupr.com.'); return false;">⟳ Sync DUPR (local)</a></li>
 <li>Open <a href="https://dashboard.dupr.com" target="_blank" rel="noopener">dashboard.dupr.com</a> and log in as usual,
  with the code DUPR emails you.</li>
-<li>Click the <b>⟳ Sync DUPR</b> bookmark. It downloads your matches, comes back here and builds your report.</li>
+<li>Click the <b>⟳ Sync DUPR (local)</b> bookmark. It downloads your matches, comes back here and builds your report. This bookmark only works while this local app is running; for the website, use the bookmark from the website.</li>
 </ol>
 <p class="small">You log in on DUPR's own site: your password never goes through this app.
 Keep this app running while you sync. Everything stays on your computer.</p>
@@ -113,7 +113,7 @@ IMPORT = BASE.replace("{% block body %}{% endblock %}", """
 (async () => {
   const say = (h, m) => { document.getElementById("h").textContent = h; document.getElementById("m").textContent = m || ""; };
   const hash = location.hash.slice(1);
-  if (!hash.startsWith("d=")) { say("No data received", "Click the ⟳ Sync DUPR bookmark while on dashboard.dupr.com."); return; }
+  if (!hash.startsWith("d=")) { say("No data received", "Click the ⟳ Sync DUPR (local) bookmark while on dashboard.dupr.com."); return; }
   history.replaceState(null, "", location.pathname);
   try {
     const r = await fetch("{{ url_for('api_import') }}", { method: "POST", headers: { "Content-Type": "text/plain" }, body: hash });

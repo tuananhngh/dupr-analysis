@@ -37,6 +37,7 @@ class Analysis:
     opponent_effect: dict = field(default_factory=dict)   # "do stronger opponents help my rating?"
     tracker: pd.DataFrame | None = None                   # recent matches vs the ones before
     tips: list[dict] = field(default_factory=list)        # "how to improve" findings
+    tip_level: dict = field(default_factory=dict)         # rating band used for the tips
 
 
 # ------------------------------------------------------------ how to improve
@@ -49,9 +50,153 @@ def _tip(kind: str, title: str, finding: str, advice: str) -> dict:
     return {"kind": kind, "title": title, "finding": finding, "advice": advice}
 
 
+# Rating bands. Thresholds and advice below have one value per band, in this order.
+# The thresholds are coaching heuristics (what is unusual for a level), not DUPR figures.
+BANDS = [
+    {"label": "below 3.0", "name": "Beginner", "max": 3.0},
+    {"label": "3.0–3.5", "name": "Improving", "max": 3.5},
+    {"label": "3.5–4.0", "name": "Intermediate", "max": 4.0},
+    {"label": "4.0–4.5", "name": "Advanced", "max": 4.5},
+    {"label": "4.5 and above", "name": "Expert", "max": math.inf},
+]
+
+THRESHOLDS = {
+    # Share of lost games lost by 7+ points that counts as "too many heavy losses".
+    "heavy_loss_pct": (45, 38, 30, 25, 20),
+    # Win % after winning game 1 below which closing out is a weak spot.
+    "closeout_pct": (60, 65, 70, 75, 78),
+    # Win % after losing game 1: at or below = weak spot, at or above = strength.
+    "comeback_weak_pct": (15, 18, 20, 22, 25),
+    "comeback_strong_pct": (30, 32, 35, 38, 40),
+    # Point win % against stronger opponents that counts as competitive.
+    "vs_stronger_ok_pct": (44, 45, 46, 47, 48),
+}
+
+ADVICE = {
+    "slow_starts": (
+        "Warm up for 10 minutes before your first match: serves, returns and short dink rallies. "
+        "In game 1, just aim to get every serve and return in.",
+        "Warm up dinks and third-shot drops before you start. In game 1, play the percentages: deep serve, "
+        "deep return, get to the kitchen line, no early speed-ups.",
+        "Use the warm-up to groove drops and resets. Early in game 1, test the opponents with safe patterns "
+        "(middle, backhands) before taking risks.",
+        "Warm up like for a tournament: movement, a few fast hands exchanges, then start game 1 with "
+        "high-percentage resets until you have read the opponents' tendencies.",
+        "Go in with a first-game plan (targets, serve and return patterns) and a short activation routine: "
+        "at this level the first points often decide game 1.",
+    ),
+    "fading": (
+        "Your opponents adapt after game 1. Between games, agree on one simple thing with your partner "
+        "(for example: keep the ball in the middle) and stick to it. Drink and breathe.",
+        "Between games, pick one change together: aim more at the weaker player, return deeper, or move up "
+        "to the kitchen faster. Keep your energy up.",
+        "Opponents adjust in game 2. Prepare a plan B (stacking, new targets, slower pace with more dinks) "
+        "and decide it together between games.",
+        "Expect a change after they lose game 1. Spot it in the first points of game 2 and counter quickly: "
+        "switch targets, vary pace and height.",
+        "Review game 1 with your partner: what worked for them and what they will change. Have counters "
+        "ready, and watch your fitness: game 2 is often won on conditioning and adjustments.",
+    ),
+    "comeback": (
+        "After losing a game, slow down: make the opponents hit more balls. Fewer mistakes is the fastest way back.",
+        "After a lost game, change one concrete thing: more dinks and drops, aim at the weaker opponent, "
+        "and cut return errors.",
+        "After a lost game, find the 1–2 patterns that cost you points and change them: stack or switch sides, "
+        "slow the pace, target the middle.",
+        "Treat game 2 as a new match: change targets, use resets to break their rhythm, and take a time-out "
+        "early if they go on a run.",
+        "Prepare a plan B and C in advance (stacking variations, serve and return changes), use time-outs "
+        "tactically and reset mentally between games.",
+    ),
+    "closeout": (
+        "After winning game 1, keep doing exactly what worked: same targets, same patience.",
+        "Don't relax after game 1: start game 2 with the same focus and tactics until the opponents change something.",
+        "In game 2, watch for the opponents' adjustment (new targets, stacking, more speed) and adapt early "
+        "instead of waiting to fall behind.",
+        "Expect the opponents to change after game 1 and stay one step ahead: vary your serves and returns "
+        "early in game 2.",
+        "Keep the pressure on: opponents at this level adapt fast, so change patterns before they settle "
+        "and don't give away cheap points.",
+    ),
+    "tight_endings": (
+        "At 8-8 and later, just get your serve and return deep and in, then dink until someone makes a "
+        "mistake. Practise games that start at 7-7.",
+        "Practise games that start at 8-8. At game point, play your safest pattern: deep serve, deep return, "
+        "drop, dink, and no risky speed-ups.",
+        "In tight endings, don't speed up balls below the net; reset instead. Agree with your partner on a "
+        "go-to pattern for big points.",
+        "At the end of games, attack only high balls, take a time-out to reset when needed, and rely on "
+        "your most reliable patterns.",
+        "Work on your routine between points (breathing, a set reset) and on a few clutch patterns you "
+        "trust. Note which opponent tightens up on big points.",
+    ),
+    "heavy_losses": (
+        "When you start losing points in a row, slow down: high, deep returns and safe dinks. Take a time-out "
+        "to break their run.",
+        "Stop runs early: take a time-out after 3–4 points in a row, then play safer (deep returns, "
+        "third-shot drops) to keep the game close.",
+        "When a game slips away, break their momentum: time-out, change formation (stack) or targets. "
+        "Keeping the score close protects your rating.",
+        "Find what produces their runs (your speed-ups being countered, one side being targeted) and shut "
+        "it down with resets and patience.",
+        "Heavy losses at this level usually come from a matchup problem: prepare counters for that style "
+        "and take time-outs earlier.",
+    ),
+    "favourite_losses": (
+        "Against weaker teams keep it simple: get the ball in and let them make the mistakes. "
+        "Don't try difficult shots.",
+        "Against weaker teams stay patient: dink and drop until there's a real opening, and don't get "
+        "dragged into sloppy rallies.",
+        "As the favourite, keep unforced errors low: play the percentages and only speed up high balls.",
+        "Stay focused on the process against weaker teams: target the weaker player, keep errors low and "
+        "close out games firmly.",
+        "Losing as the favourite costs a lot of rating at this level: take every rated match seriously and "
+        "don't experiment in them.",
+    ),
+    "vs_stronger_gap": (
+        "Stronger players punish high balls. Practise keeping your dinks low and your returns deep, and play "
+        "with better players when you can.",
+        "Drill third-shot drops and dinks: better players attack anything high. Play up regularly to get "
+        "used to the pace.",
+        "Work on resets in the transition zone and on blocking hard drives: that's where stronger players "
+        "win their points.",
+        "Work on fast hands exchanges, counter-attacks and patience in long dink rallies; play up in drills "
+        "and open play.",
+        "Study matches against top players (video if possible): shot selection, positioning and variety. "
+        "Train with stronger partners.",
+    ),
+    "energy": (
+        "Eat and drink between matches and take short breaks. Play fewer matches in a row if you get tired.",
+        "Pace yourself in long sessions: water, a snack and a short rest between matches, or fewer matches per day.",
+        "Pace yourself in long sessions: water, a snack and a short rest between matches, or fewer matches per day.",
+        "Work on fitness and recovery between matches (hydration, food, mobility), and plan your session load "
+        "before events.",
+        "Work on fitness and recovery between matches (hydration, food, mobility), and plan your session load "
+        "before events.",
+    ),
+}
+
+
+def level_band(rating: float) -> int:
+    """Index in BANDS for a DUPR rating; the middle band if the rating is unknown."""
+    if rating is None or math.isnan(rating):
+        return 2
+    return next(i for i, b in enumerate(BANDS) if rating < b["max"])
+
+
 def improvement_tips(a: "Analysis") -> list[dict]:
-    """Concrete, data-backed things to work on. Each tip needs a minimum sample size."""
+    """Concrete, data-backed things to work on, adapted to the player's rating band.
+
+    Each rule compares the player with themself where possible, needs a minimum number of
+    matches, and uses thresholds and advice from the player's rating band.
+    """
     df, c, tips = a.matches, a.close_games, []
+    rating = a.summary.get("rating_now", math.nan)
+    lvl = level_band(rating)
+    a.tip_level = {**BANDS[lvl], "rating": rating}
+    t = {k: v[lvl] for k, v in THRESHOLDS.items()}
+    adv = {k: v[lvl] for k, v in ADVICE.items()}
+
     margins = [m for ms in df["game_margins"] for m in ms]
     if len(margins) < 10:
         return tips
@@ -64,14 +209,12 @@ def improvement_tips(a: "Analysis") -> list[dict]:
         p1, p2 = np.mean(g1) * 100, np.mean(g2) * 100
         if p1 <= p2 - 8:
             tips.append(_tip("work", "Slow starts",
-                             f"You win {p1:.0f}% of first games but {p2:.0f}% of second games ({len(g1)} multi-game matches).",
-                             "Warm up properly before the first game: dinks, drops and a few serves/returns. "
-                             "Start with high-percentage shots until you find your rhythm."))
+                             f"You win {p1:.0f}% of first games but {p2:.0f}% of second games "
+                             f"({len(g1)} multi-game matches).", adv["slow_starts"]))
         elif p1 >= p2 + 8:
             tips.append(_tip("work", "Fading after game 1",
-                             f"You win {p1:.0f}% of first games but only {p2:.0f}% of second games.",
-                             "Opponents adjust after game 1. Between games, agree with your partner on one change "
-                             "(target the weaker player, more third-shot drops, stack). Watch fitness and hydration."))
+                             f"You win {p1:.0f}% of first games but only {p2:.0f}% of second games "
+                             f"({len(g1)} multi-game matches).", adv["fading"]))
 
     # 2. After losing / winning the first game
     multi = [ms for ms in df["game_margins"] if len(ms) >= 2]
@@ -79,81 +222,76 @@ def improvement_tips(a: "Analysis") -> list[dict]:
     won1 = [ms for ms in multi if ms[0] > 0]
     if len(lost1) >= 5:
         cb = np.mean([_wins_match(ms) for ms in lost1]) * 100
-        if cb >= 35:
+        if cb >= t["comeback_strong_pct"]:
             tips.append(_tip("strength", "Comebacks",
                              f"After losing the first game you still win {cb:.0f}% of matches ({len(lost1)} matches).",
                              "Keep doing what you do between games: your adjustments work."))
-        elif cb <= 20:
+        elif cb <= t["comeback_weak_pct"]:
             tips.append(_tip("work", "Hard to come back",
                              f"After losing the first game you win only {cb:.0f}% of matches ({len(lost1)} matches).",
-                             "After a lost game, change something concrete instead of playing harder: "
-                             "slow the pace with more dinks, target the weaker opponent, or switch sides/stack."))
+                             adv["comeback"]))
     if len(won1) >= 5:
         co = np.mean([_wins_match(ms) for ms in won1]) * 100
-        if co <= 70:
+        if co <= t["closeout_pct"]:
             tips.append(_tip("work", "Closing out matches",
-                             f"After winning the first game you go on to win only {co:.0f}% of matches.",
-                             "Don't relax after game 1: keep the same tactics that won it."))
+                             f"After winning the first game you go on to win only {co:.0f}% of matches "
+                             f"({len(won1)} matches).", adv["closeout"]))
 
-    # 3. Tight endings
+    # 3. Tight endings, compared with the player's own game win %
     if c.get("close_games", 0) >= 8:
         cw = c["close_win_pct"]
         if cw <= game_win - 8:
             tips.append(_tip("work", "Tight endings",
-                             f"You win {cw:.0f}% of close games (decided by 2 points or fewer) vs {game_win:.0f}% of all games.",
-                             "Practise end-of-game situations (start drills at 8-8). At game point, cut unforced "
-                             "errors: deep serves and returns, then reset to the kitchen."))
+                             f"You win {cw:.0f}% of close games (decided by 2 points or fewer) vs {game_win:.0f}% "
+                             "of all your games.", adv["tight_endings"]))
         elif cw >= game_win + 8:
             tips.append(_tip("strength", "Clutch in tight endings",
-                             f"You win {cw:.0f}% of close games vs {game_win:.0f}% of all games.",
+                             f"You win {cw:.0f}% of close games vs {game_win:.0f}% of all your games.",
                              "You handle pressure well; the gains are earlier in the game, before it gets tight."))
 
     # 4. Heavy losses
     lost = [m for m in margins if m < 0]
     if len(lost) >= 8:
         heavy = np.mean([m <= -7 for m in lost]) * 100
-        if heavy >= 30:
+        if heavy >= t["heavy_loss_pct"]:
             tips.append(_tip("work", "Heavy losses",
-                             f"{heavy:.0f}% of the games you lose are by 7 points or more.",
-                             "Losing big costs the most DUPR rating. When a game slips away, stop the run: take a "
-                             "time-out, play safer (third-shot drops, deep returns) and aim to keep it close."))
+                             f"{heavy:.0f}% of the games you lose are by 7 points or more "
+                             f"(more than usual for your level, where {t['heavy_loss_pct']}% is already high).",
+                             adv["heavy_losses"]))
 
     # 5. Losses you were expected to win
     exp = df.dropna(subset=["exp_win"])
     upsets = exp[(~exp["won"]) & (exp["exp_win"] >= 0.6)]
     if len(exp) >= 15 and len(upsets) >= 3:
         cost = upsets["rating_impact"].sum(min_count=1)
-        cost_txt = f", costing {cost:+.3f} rating in total" if not math.isnan(cost) else ""
+        cost_txt = f", costing {abs(cost):.3f} rating in total" if not math.isnan(cost) and cost < 0 else ""
         tips.append(_tip("work", "Losses as the favourite",
-                         f"You lost {len(upsets)} matches where your team was the clear favourite (60%+ expected){cost_txt}.",
-                         "Against weaker teams, avoid playing down to their level: stay patient, keep "
-                         "unforced errors low and let them make the mistakes."))
+                         f"You lost {len(upsets)} matches where your team was the clear favourite "
+                         f"(60%+ expected){cost_txt}.", adv["favourite_losses"]))
 
-    # 6. Performance against stronger opponents
+    # 6. Against stronger opponents (rated 0.1+ above you)
     st = df[df["opp_gap"] > 0.1]
     if len(st) >= 8:
         ps = st["point_share"].mean() * 100
-        if ps >= 46:
+        if ps >= t["vs_stronger_ok_pct"]:
             tips.append(_tip("strength", "Competitive against stronger players",
                              f"Against stronger opponents you still win {ps:.0f}% of points ({len(st)} matches).",
                              "Keep playing up regularly: close scores against better players raise your rating."))
         else:
             tips.append(_tip("work", "Gap against stronger players",
                              f"Against stronger opponents you win {ps:.0f}% of points ({len(st)} matches).",
-                             "Watch what they do better (often fewer unforced errors and a stronger soft game). "
-                             "Drill dinks and resets, and play up more often to get used to the pace."))
+                             adv["vs_stronger_gap"]))
 
-    # 7. Fatigue: performance by match number within a day
-    d = df.assign(day=df["date"].dt.normalize())
-    d = d.sort_values(["day", "match_id"])
+    # 7. Energy: performance by match number within a day
+    d = df.assign(day=df["date"].dt.normalize()).sort_values(["date", "match_id"])
     d["nth"] = d.groupby("day").cumcount() + 1
     early, late = d[d["nth"] <= 2], d[d["nth"] >= 4]
     if len(late) >= 8 and len(early) >= 8:
         pe, pl = early["point_share"].mean() * 100, late["point_share"].mean() * 100
         if pl <= pe - 3:
             tips.append(_tip("work", "Energy over a long session",
-                             f"Point win % drops from {pe:.0f}% in your first 2 matches of a day to {pl:.0f}% from the 4th match on.",
-                             "Pace yourself in long sessions: eat, drink and rest between matches, or play fewer matches per day."))
+                             f"Point win % drops from {pe:.0f}% in your first 2 matches of a day to {pl:.0f}% "
+                             "from the 4th match on.", adv["energy"]))
 
     # 8. Best partner fit
     if a.partners is not None and a.partners["avg_impact"].notna().any():
@@ -167,7 +305,7 @@ def improvement_tips(a: "Analysis") -> list[dict]:
                              "it to your other partnerships."))
 
     order = {"work": 0, "strength": 1, "info": 2}
-    return sorted(tips, key=lambda t: order[t["kind"]])
+    return sorted(tips, key=lambda x: order[x["kind"]])
 
 
 GAP_BINS = [-np.inf, -0.3, -0.1, 0.1, 0.3, np.inf]
