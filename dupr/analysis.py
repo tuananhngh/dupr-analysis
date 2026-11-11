@@ -16,6 +16,25 @@ def expected_win_prob(diff: pd.Series | float) -> pd.Series | float:
     return 1.0 / (1.0 + np.power(10.0, -np.asarray(diff, dtype=float) / EXPECTATION_SCALE))
 
 
+# Fallback when there aren't enough matches to learn it: each 0.1 of team-rating edge
+# is worth about 2.5% of the points.
+DEFAULT_POINTS_PER_RATING = 0.25
+
+
+def expected_point_share(df: pd.DataFrame) -> pd.Series:
+    """Share of points a team 'should' win given the rating gap: 50% when even, plus a slope.
+
+    The slope is learned from the player's own matches (a line through 50% at a gap of 0), so it
+    reflects how much rating gaps really matter in their games. Falls back to a default slope.
+    """
+    d = df.dropna(subset=["rating_diff", "point_share"])
+    x, y = d["rating_diff"].to_numpy(float), d["point_share"].to_numpy(float) - 0.5
+    slope = DEFAULT_POINTS_PER_RATING
+    if len(d) >= 15 and (x ** 2).sum() > 0.05:
+        slope = float(np.clip((x * y).sum() / (x ** 2).sum(), 0.05, 0.6))
+    return (0.5 + slope * df["rating_diff"]).clip(0.05, 0.95)
+
+
 @dataclass
 class Analysis:
     fmt: str
@@ -529,6 +548,7 @@ def analyze(df: pd.DataFrame, fmt: str, history: pd.DataFrame | None = None) -> 
 
     df["exp_win"] = expected_win_prob(df["rating_diff"])
     df.loc[df["rating_diff"].isna(), "exp_win"] = np.nan
+    df["exp_point_share"] = expected_point_share(df)
     df["match_no"] = np.arange(1, len(df) + 1)
     w = min(10, max(3, len(df) // 5))
     df["rolling_win_pct"] = df["won"].rolling(w, min_periods=w).mean() * 100

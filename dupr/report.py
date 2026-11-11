@@ -224,47 +224,74 @@ def chart_win_form(a: Analysis) -> str:
     return _div(_layout(fig, "Win %: actual vs predicted", "Win %", 400))
 
 
+def monthly_points(a: Analysis) -> pd.DataFrame:
+    """Per month: actual vs expected point win %, matches, and rating change that month."""
+    df = a.matches.dropna(subset=["point_share"])
+    if df.empty:
+        return pd.DataFrame()
+    month = df["date"].dt.to_period("M").dt.to_timestamp(how="end").dt.normalize()
+    t = df.assign(month=month).groupby("month").agg(
+        matches=("won", "size"),
+        actual=("point_share", lambda x: x.mean() * 100),
+        expected=("exp_point_share", lambda x: x.mean() * 100),
+    )
+    t["gap"] = t["actual"] - t["expected"]
+    rc = monthly_rating_change(a)
+    t["rating_change"] = rc["change"].reindex(t.index) if not rc.empty else math.nan
+    return t
+
+
+def point_form_insight(t: pd.DataFrame) -> str:
+    """Plain-language takeaway: does beating the expected points go with rating gains for this player?"""
+    if t.empty:
+        return ""
+    m = t.dropna(subset=["gap", "rating_change"])
+    above, below = m[m["gap"] > 0], m[m["gap"] < 0]
+    if len(above) < 2 or len(below) < 2:
+        return ""
+    up = int((above["rating_change"] > 0).sum())
+    down = int((below["rating_change"] < 0).sum())
+    return (f"Blue months raised your rating {up} times out of {len(above)}; "
+            f"orange months lowered it {down} times out of {len(below)}.")
+
+
 def chart_point_form(a: Analysis) -> str:
-    df, w = a.matches, a.summary["rolling_window"]
-    daily = _end_of_day(df, ["rolling_point_share"])
+    """Per month: actual point win % (dot) vs expected from the rating gaps (dash), joined by a bar
+    that is blue when you beat the expectation and orange when you fall short."""
+    t = monthly_points(a).dropna(subset=["expected"])
+    if t.empty:
+        return ""
+    x = [f"{d:%b}<br>'{d:%y}" for d in t.index]
     fig = go.Figure()
+    for xi, (_, r) in zip(x, t.iterrows()):
+        fig.add_scatter(x=[xi, xi], y=[r["expected"], r["actual"]], mode="lines", showlegend=False,
+                        line=dict(color=BLUE if r["gap"] >= 0 else ORANGE, width=6), hoverinfo="skip")
     fig.add_scatter(
-        x=df["date"],
-        y=df["point_share"] * 100,
-        mode="markers",
-        name="Each match",
-        marker=dict(size=6, color=FAINT),
-        hovertemplate="%{y:.0f}%<extra>Match</extra>",
+        x=x, y=t["expected"], mode="markers", name="Expected from ratings",
+        marker=dict(symbol="line-ew", size=22, line=dict(width=3, color=INK2)),
+        hovertemplate="expected %{y:.0f}%<extra></extra>",
     )
     fig.add_scatter(
-        x=daily["day"],
-        y=daily["rolling_point_share"],
-        name=f"Average (last {w})",
-        line=dict(color=BLUE, width=3),
-        hovertemplate="%{y:.1f}%<extra>Average</extra>",
+        x=x, y=t["actual"], mode="markers+text", name="You", showlegend=False,
+        marker=dict(size=11, color=[BLUE if g >= 0 else ORANGE for g in t["gap"]],
+                    line=dict(color=SURFACE, width=2)),
+        text=[f"{v:.0f}%" for v in t["actual"]],
+        textposition=["top center" if g >= 0 else "bottom center" for g in t["gap"]],
+        textfont=dict(size=11, color=INK2),
+        customdata=list(zip(t["matches"], t["gap"], t["rating_change"].fillna(0))),
+        hovertemplate="won %{y:.0f}% of points (%{customdata[1]:+.0f} vs expected)<br>%{customdata[0]} matches"
+                      "<br>rating that month %{customdata[2]:+.3f}<extra></extra>",
     )
-    fig.add_hline(
-        y=50,
-        line=dict(color=MUTED, width=1, dash="dot"),
-        annotation_text="50% = even",
-        annotation_position="bottom left",
-        annotation_font=dict(size=12, color=INK2),
-    )
-    last = daily.dropna(subset=["rolling_point_share"]).tail(1)
-    if len(last):
-        _label(
-            fig,
-            last["day"].iloc[0],
-            last["rolling_point_share"].iloc[0],
-            f"Now {last['rolling_point_share'].iloc[0]:.1f}%",
-            ay=-34,
-            ax=-30,
-            color=BLUE,
-        )
-    lo = min(30, (df["point_share"] * 100).min() - 2)
-    hi = max(70, (df["point_share"] * 100).max() + 2)
+    for color, label in ((BLUE, "Above expected"), (ORANGE, "Below expected")):
+        fig.add_scatter(x=[None], y=[None], mode="markers", name=label,
+                        marker=dict(size=11, color=color), hoverinfo="skip")
+    fig.add_hline(y=50, line=dict(color=MUTED, width=1, dash="dot"))
+    lo = min(t["actual"].min(), t["expected"].min()) - 6
+    hi = max(t["actual"].max(), t["expected"].max()) + 6
     fig.update_yaxes(range=[lo, hi], ticksuffix="%")
-    return _div(_layout(fig, "Point win %: share of points you win", "Point win %", 400))
+    fig.update_xaxes(type="category", tickangle=0)
+    fig.update_layout(hovermode="closest")
+    return _div(_layout(fig, "Points won per month: actual vs expected", "Point win %", 400))
 
 
 def chart_opp_results(a: Analysis) -> str:
@@ -760,8 +787,7 @@ def section(a: Analysis) -> str:
 <div class="grid2">
 {card(chart_win_form(a), f"Blue = how often you won over your last {w} matches. Orange = how often the ratings say "
       "you should win. Blue above orange: you are playing above your rating.")}
-{card(chart_point_form(a), "Grey dots = single matches, blue line = trend. Steadier than win %: if it rises, your "
-      "level is improving even before results and rating follow.")}
+{card(chart_point_form(a), "Dot = points you won, dash = what the ratings predict. Blue = above, orange = below. " + point_form_insight(monthly_points(a)))}
 </div>
 
 {opponents_section(a)}
