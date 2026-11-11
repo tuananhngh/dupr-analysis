@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DUPR Analysis</title>
+<meta name="description" content="See how your pickleball game evolves: your DUPR rating, form, partners, opponents and what to work on.">
+<style>
+:root{color-scheme:light;--bg:#f4f3f0;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--line:#e6e5e0;--accent:#2a78d6;--err:#b42318}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Inter,-apple-system,"Segoe UI",sans-serif}
+main{max-width:600px;margin:48px auto;padding:0 16px}
+h1{font-size:26px;margin:0 0 4px}p{color:var(--ink2)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0}
+.small{font-size:13px;color:var(--ink2)}
+button,.btn{display:inline-block;padding:10px 16px;border-radius:8px;border:0;background:var(--accent);color:#fff;
+  font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+button.secondary{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+button.link{background:none;color:var(--ink2);padding:0;font-weight:500;text-decoration:underline}
+ol.steps{list-style:none;counter-reset:step;padding:0;margin:14px 0 4px}
+ol.steps li{counter-increment:step;position:relative;padding:0 0 18px 42px}
+ol.steps li::before{content:counter(step);position:absolute;left:0;top:-2px;width:28px;height:28px;border-radius:50%;
+  background:#e3edfa;color:var(--accent);font-weight:700;display:flex;align-items:center;justify-content:center}
+a.bm{display:inline-block;margin-top:8px;padding:9px 16px;border-radius:8px;background:var(--accent);color:#fff;
+  font-weight:600;text-decoration:none;cursor:grab}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.progress{height:6px;background:#e3edfa;border-radius:3px;overflow:hidden;margin:14px 0 8px}
+.progress>div{height:100%;width:0;background:var(--accent);transition:width .4s}
+.err{color:var(--err);font-weight:600}
+#reportView{display:none;position:fixed;inset:0;flex-direction:column;background:var(--bg)}
+#reportView .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 16px;background:var(--surface);
+  border-bottom:1px solid var(--line)}
+#reportView .bar strong{margin-right:auto}
+#reportView .bar button{padding:6px 12px;font-size:14px}
+#reportFrame{flex:1;width:100%;border:0}
+</style>
+</head>
+<body>
+<main id="home">
+  <h1>DUPR performance analysis</h1>
+  <p>See how your pickleball game evolves: your rating over time, form, results against what the ratings predict,
+     partners, opponents and what to work on.</p>
+
+  <div class="card" id="lastSync" hidden>
+    <strong>Your last sync</strong>
+    <p id="lastSyncText"></p>
+    <div class="row">
+      <button id="openLast">Open my report</button>
+      <button class="link" id="forget">Forget my data</button>
+    </div>
+  </div>
+
+  <div class="card" id="working" hidden>
+    <strong id="workTitle">Building your report…</strong>
+    <div class="progress"><div id="bar"></div></div>
+    <p class="small" id="workStep">Starting…</p>
+  </div>
+
+  <div class="card" id="steps">
+    <strong>Get your report</strong>
+    <ol class="steps">
+      <li><b>Once:</b> drag this button to your bookmarks bar
+        <span class="small">(show the bar with ⌘⇧B on Mac, Ctrl+Shift+B on Windows)</span><br>
+        <a class="bm" id="bookmark" href="#"
+           onclick="alert('Drag this button to your bookmarks bar, then click it while you are on dashboard.dupr.com.'); return false;">⟳ Sync DUPR</a></li>
+      <li>Open <a href="https://dashboard.dupr.com" target="_blank" rel="noopener">dashboard.dupr.com</a> and log in as usual.</li>
+      <li>Click the <b>⟳ Sync DUPR</b> bookmark. Your matches are downloaded and you come back here to your report.</li>
+    </ol>
+    <p class="small">You log in on DUPR's own site: your password never goes through this page.
+      Your data stays in your browser. It is never uploaded anywhere.
+      Works on a computer (Chrome, Edge, Firefox, Safari).</p>
+  </div>
+</main>
+
+<div id="reportView">
+  <div class="bar">
+    <strong>DUPR performance report</strong>
+    <button class="secondary" id="download">Download report</button>
+    <button class="secondary" id="back">Back</button>
+  </div>
+  <iframe id="reportFrame" title="Your DUPR performance report"></iframe>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"></script>
+<script>
+// Everything runs in this browser tab: Python (Pyodide) runs the same analysis code as
+// the desktop version (dupr/*.py), on data the Sync DUPR bookmark brings in the #fragment.
+const PY_FILES = ["__init__.py", "parse.py", "analysis.py", "report.py", "pipeline.py"];
+const STORE_KEY = "dupr-analysis:last-sync";
+const $ = id => document.getElementById(id);
+let reportUrl = null, reportHtml = null;
+
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return null; } },
+  set(v) { try { localStorage.setItem(STORE_KEY, JSON.stringify(v)); } catch { /* storage full or blocked */ } },
+  clear() { try { localStorage.removeItem(STORE_KEY); } catch {} },
+};
+
+// 1. Build the bookmark from dupr/bookmarklet.js, pointing back at this page.
+async function setupBookmark() {
+  const src = await (await fetch("dupr/bookmarklet.js", { cache: "no-cache" })).text();
+  const target = location.origin + location.pathname;
+  const code = src.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("//")).join(" ")
+    .replace("__TARGET__", target).replace(/\s+/g, " ");
+  $("bookmark").href = "javascript:" + encodeURIComponent(code);
+}
+
+function progress(pct, text) { $("bar").style.width = pct + "%"; $("workStep").textContent = text; }
+
+let pyodideReady = null;
+async function loadPython() {
+  if (pyodideReady) return pyodideReady;
+  pyodideReady = (async () => {
+    progress(10, "Loading the analysis engine (first time can take 10–20 seconds)…");
+    const py = await loadPyodide();
+    progress(35, "Loading data tools…");
+    await py.loadPackage(["numpy", "pandas", "micropip"]);
+    progress(60, "Loading charts…");
+    await py.runPythonAsync('import micropip\nawait micropip.install("plotly==7.1.0")');
+    py.FS.mkdirTree("/home/pyodide/dupr");
+    for (const f of PY_FILES) {
+      const code = await (await fetch("dupr/" + f, { cache: "no-cache" })).text();
+      py.FS.writeFile("/home/pyodide/dupr/" + f, code);
+    }
+    return py;
+  })();
+  return pyodideReady;
+}
+
+// 2. Turn a sync payload into the report.
+async function buildReport(payload) {
+  $("working").hidden = false; $("lastSync").hidden = true;
+  $("workTitle").textContent = "Building your report…"; $("workTitle").classList.remove("err");
+  try {
+    const py = await loadPython();
+    progress(80, "Analysing your matches…");
+    py.globals.set("payload", payload);
+    reportHtml = await py.runPythonAsync(`
+from pathlib import Path
+import shutil
+from dupr.pipeline import decode_sync_payload, save_sync, load_raw, build_report
+shutil.rmtree("/tmp/dupr", ignore_errors=True)
+data = decode_sync_payload(payload)
+save_sync(data, Path("/tmp/dupr/raw"), lambda m: None)
+build_report(*load_raw(Path("/tmp/dupr/raw")), Path("/tmp/dupr/out"), lambda m: None).read_text()
+`);
+    progress(100, "Done");
+    showReport();
+  } catch (e) {
+    console.error(e);
+    $("workTitle").textContent = "Could not build the report"; $("workTitle").classList.add("err");
+    progress(0, String(e.message || e).split("\n").slice(-2).join(" "));
+  } finally {
+    refreshLastSync();
+  }
+}
+
+function showReport() {
+  if (reportUrl) URL.revokeObjectURL(reportUrl);
+  reportUrl = URL.createObjectURL(new Blob([reportHtml], { type: "text/html" }));
+  $("reportFrame").src = reportUrl;
+  $("reportView").style.display = "flex"; $("home").hidden = true; $("working").hidden = true;
+}
+
+function refreshLastSync() {
+  const last = store.get();
+  const busy = !$("working").hidden && $("workTitle").textContent.startsWith("Building");
+  $("lastSync").hidden = !last || busy;
+  if (last) {
+    const d = new Date(last.at);
+    $("lastSyncText").textContent = `Synced on ${d.toLocaleDateString()} at ${d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}. ` +
+      "To update it, click the bookmark on dupr.com again.";
+  }
+}
+
+$("openLast").onclick = () => { const last = store.get(); if (last) buildReport(last.payload); };
+$("forget").onclick = () => { store.clear(); $("lastSync").hidden = true; };
+$("back").onclick = () => { $("reportView").style.display = "none"; $("home").hidden = false; refreshLastSync(); };
+$("download").onclick = () => {
+  const a = document.createElement("a");
+  a.href = reportUrl; a.download = `dupr-report-${new Date().toISOString().slice(0, 10)}.html`; a.click();
+};
+
+// 3. On load: data just arrived from the bookmark? Otherwise show the steps.
+setupBookmark();
+if (location.hash.startsWith("#d=")) {
+  const payload = location.hash.slice(1);
+  history.replaceState(null, "", location.pathname);   // remove the data from the address bar
+  store.set({ payload, at: Date.now() });
+  buildReport(payload);
+} else {
+  refreshLastSync();
+}
+</script>
+</body>
+</html>
