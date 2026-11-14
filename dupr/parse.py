@@ -119,6 +119,8 @@ def parse_matches(raw: list[dict], player_id: int | str) -> pd.DataFrame:
             "format": fmt,
             "event": first(m, "eventName", "league", "tournament", default=""),
             "source": str(first(m, "matchSource", "source", "matchType", default="UNKNOWN")).upper(),
+            # DUPR tags rally games ("RALLY"); side-out ("SIDE_ONLY") is the default when the tag is missing.
+            "scoring": "RALLY" if "RALLY" in str(m.get("matchType") or "").upper() else "SIDE_OUT",
             "confirmed": first(m, "confirmed", default=True),
             "won": bool(won),
             "games_won": games_won,

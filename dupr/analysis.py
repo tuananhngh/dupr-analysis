@@ -1,4 +1,18 @@
-"""Performance analytics on the tidy match table produced by parse.py."""
+"""Performance analytics on the tidy match table produced by parse.py.
+
+Two reference models say what "should" have happened in each match, given the ratings on court
+(details and evidence: MODEL_REPORT.md, sections 3 and 4):
+
+  1. Win model     P(win) = 1 / (1 + 10^(-x / scale)), x = team rating - opponents' rating.
+                   `scale` is fitted to the player's own results (default 0.5).
+  2. Point model   expected rally share p = 0.5 + slope · x, converted to an expected point share
+                   with the match's scoring system (side-out stretches a rally edge into a bigger
+                   point edge). `slope` is fitted to the player's own scores (default 0.2).
+
+Both models are fitted per player and per format (doubles / singles), with a default value when
+there are too few matches. "Above expectation" in the report means doing better than these models
+predict from the ratings.
+"""
 from __future__ import annotations
 
 import math
@@ -7,32 +21,116 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-# Approximate win-probability model: a 0.25 team-rating edge ~ 76% to win.
-# DUPR doesn't publish its model; this is only used as a yardstick.
+# ------------------------------------------------------------ model 1: chance of winning a match
+# Elo-type logistic curve: P(win) = 1 / (1 + 10^(-gap / scale)). DUPR doesn't publish its model;
+# this is only used as a yardstick. Equal teams get 50%, and the two teams' chances add up to 1.
+# `scale` is the gap at which the odds are 10:1 (P = 91%): a larger scale means rating gaps matter
+# less. It is fitted to each player's own matches by maximum likelihood (fit_expectation_scale);
+# with too few matches it falls back to the default 0.5 (a 0.25 edge ~ 76% to win).
 EXPECTATION_SCALE = 0.5
+# Below 30 matches the fitted scale is too noisy: on random 30-match samples of a 150-match history
+# it ranged from 0.47 to 1.15 (10th–90th percentile), around a full-data value of 0.73.
+SCALE_MIN_MATCHES = 30
+SCALE_BOUNDS = (0.3, 1.5)             # safety limits: 0.3 = near-deterministic, 1.5 = near coin flip
+_SCALE_GRID = np.round(np.arange(SCALE_BOUNDS[0], SCALE_BOUNDS[1] + 1e-9, 0.01), 2)
 
 
-def expected_win_prob(diff: pd.Series | float) -> pd.Series | float:
-    return 1.0 / (1.0 + np.power(10.0, -np.asarray(diff, dtype=float) / EXPECTATION_SCALE))
+def expected_win_prob(diff: pd.Series | float, scale: float = EXPECTATION_SCALE) -> pd.Series | float:
+    """Chance that a team wins the match, from its rating gap (team mean minus opponents' mean).
+
+    Example with scale 0.5: gap 0.10 -> 61%, 0.25 -> 76%, 0.50 -> 91%; a negative gap mirrors these.
+    """
+    return 1.0 / (1.0 + np.power(10.0, -np.asarray(diff, dtype=float) / scale))
 
 
-# Fallback when there aren't enough matches to learn it: each 0.1 of team-rating edge
-# is worth about 2.5% of the points.
-DEFAULT_POINTS_PER_RATING = 0.25
+def win_loglik(diff, won, scale: float) -> float:
+    """Bernoulli log-likelihood of the results under the win model with this scale.
+
+    Each match is a yes/no trial: a win adds ln P(win), a loss adds ln(1 - P(win)). Higher is a
+    better fit. The clip avoids ln(0) for extreme gaps.
+    """
+    p = np.clip(expected_win_prob(diff, scale), 1e-12, 1 - 1e-12)
+    w = np.asarray(won, dtype=float)
+    return float((w * np.log(p) + (1 - w) * np.log(1 - p)).sum())
+
+
+def fit_expectation_scale(df: pd.DataFrame) -> tuple[float, bool]:
+    """Scale of the win model for this player: (value, fitted?).
+
+    Maximum likelihood over a grid of scales in SCALE_BOUNDS, on the matches with a known rating
+    gap. Falls back to EXPECTATION_SCALE when there are fewer than SCALE_MIN_MATCHES of them, or
+    when every match was won (or every one lost), since then the likelihood has no maximum.
+    """
+    d = df.dropna(subset=["rating_diff"])         # matches with ratings for all players on court
+    won = d["won"].astype(float)
+    if len(d) < SCALE_MIN_MATCHES or won.nunique() < 2:
+        return EXPECTATION_SCALE, False
+    # A grid search is enough for one parameter and never fails to converge. A step of 0.01 is far
+    # finer than the uncertainty of the estimate (95% interval about ±0.3 at 150 matches).
+    ll = [win_loglik(d["rating_diff"], won, s) for s in _SCALE_GRID]
+    return float(_SCALE_GRID[int(np.argmax(ll))]), True
+
+
+# ------------------------------------------------------------ model 2: share of points won
+# Points vs rallies. In rally scoring every rally gives a point, so point share = rally share p.
+# In side-out scoring only the serving team scores: per serving turn a team expects 2p/(1-p) points
+# (2 servers in doubles; the ratio is the same in singles), the other team 2(1-p)/p, so in the long run
+#     point share s = p² / (p² + (1-p)²)        i.e.  logit(s) = 2·logit(p).
+# Side-out roughly doubles any rally edge in the points (55% of rallies ≈ 60% of points), so the model
+# works in rally share and converts back to points for each match's own scoring.
+#
+# Serve effect: in real pickleball the receiving team wins more rallies. If that effect adds to a
+# team's strength in log-odds, it cancels out of the formula above, so it stays exact; p is then the
+# team's strength with the serve effect removed. Otherwise the error is under 1 point of point share
+# (scripts/sideout_serve_effect.py). Games to 11 rather than "the long run" also cost under 1 point.
+def point_share_from_rally_share(p, side_out):
+    """Expected share of points from a share of rallies (side_out: bool per match)."""
+    p = np.asarray(p, dtype=float)
+    return np.where(side_out, p ** 2 / (p ** 2 + (1 - p) ** 2), p)
+
+
+def rally_share_from_point_share(s, side_out):
+    """Inverse of the above: logit(p) = logit(s) / 2, i.e. p = √s / (√s + √(1-s)).
+
+    Measures a match's rally share from its score. Example: side-out 11-7 -> s = 0.611 -> p = 0.556.
+    """
+    s = np.asarray(s, dtype=float)
+    r = np.sqrt(s)
+    return np.where(side_out, r / (r + np.sqrt(1 - s)), s)
+
+
+# Fallback slope when there aren't enough matches to learn it, in rally share per rating point:
+# each 0.1 of team-rating edge is worth about 2% of the rallies. With it, a 0.25 edge gives ~76% to
+# win one game (rally to 21 or side-out to 11), matching expected_win_prob above.
+DEFAULT_RALLIES_PER_RATING = 0.2
 
 
 def expected_point_share(df: pd.DataFrame) -> pd.Series:
-    """Share of points a team 'should' win given the rating gap: 50% when even, plus a slope.
+    """Share of points a team 'should' win given the rating gap and the match's scoring system.
 
-    The slope is learned from the player's own matches (a line through 50% at a gap of 0), so it
-    reflects how much rating gaps really matter in their games. Falls back to a default slope.
+    Model: expected rally share = 50% + slope × rating gap (a line through 50% at a gap of 0).
+    Each match's point share is first turned into a rally share (side-out matches are "un-stretched"),
+    the slope is learned from the player's own matches by least squares, and the prediction is turned
+    back into a point share with each match's scoring. Falls back to a default slope.
     """
-    d = df.dropna(subset=["rating_diff", "point_share"])
-    x, y = d["rating_diff"].to_numpy(float), d["point_share"].to_numpy(float) - 0.5
-    slope = DEFAULT_POINTS_PER_RATING
-    if len(d) >= 15 and (x ** 2).sum() > 0.05:
-        slope = float(np.clip((x * y).sum() / (x ** 2).sum(), 0.05, 0.6))
-    return (0.5 + slope * df["rating_diff"]).clip(0.05, 0.95)
+    # Untagged matches count as side-out: DUPR tags rally matches explicitly (see parse.py).
+    side_out = (df["scoring"] != "RALLY").to_numpy() if "scoring" in df else np.ones(len(df), bool)
+    # 1. Measure: each match's rally share, from its score.
+    rally = rally_share_from_point_share(df["point_share"], side_out)
+    ok = (df["rating_diff"].notna() & df["point_share"].notna()).to_numpy()
+    x, y = df["rating_diff"].to_numpy(float)[ok], rally[ok] - 0.5
+    # 2. Fit: least squares through (gap 0, 50%), slope = Σxy / Σx². The intercept is fixed at 50%
+    #    because equal teams must split the rallies (the two teams' shares add up to 1), and so that
+    #    a player who beats their ratings shows up as above the line instead of moving it.
+    #    Needs 15+ matches and enough spread in the gaps (Σx² > 0.05; below it the standard error is
+    #    about as large as the slope). Bounds [0.05, 0.4] guard against nonsense estimates.
+    slope = DEFAULT_RALLIES_PER_RATING
+    if ok.sum() >= 15 and (x ** 2).sum() > 0.05:
+        slope = float(np.clip((x * y).sum() / (x ** 2).sum(), 0.05, 0.4))
+    # 3. Predict: rally share from the gap, kept within [5%, 95%] for large gaps (a line would leave
+    #    [0, 1]), then back to a point share with each match's own scoring.
+    p = (0.5 + slope * df["rating_diff"]).clip(0.05, 0.95)
+    return pd.Series(point_share_from_rally_share(p, side_out), index=df.index)
 
 
 @dataclass
@@ -278,7 +376,8 @@ def improvement_tips(a: "Analysis") -> list[dict]:
                              f"(more than usual for your level, where {t['heavy_loss_pct']}% is already high).",
                              adv["heavy_losses"]))
 
-    # 5. Losses you were expected to win
+    # 5. Losses you were expected to win. "Expected" = win model gives 60%+ (a gap of about
+    #    +0.09 with scale 0.5, +0.13 with scale 0.73), so it adapts to the player's fitted scale.
     exp = df.dropna(subset=["exp_win"])
     upsets = exp[(~exp["won"]) & (exp["exp_win"] >= 0.6)]
     if len(exp) >= 15 and len(upsets) >= 3:
@@ -546,9 +645,19 @@ def analyze(df: pd.DataFrame, fmt: str, history: pd.DataFrame | None = None) -> 
     if df.empty:
         return a
 
-    df["exp_win"] = expected_win_prob(df["rating_diff"])
+    # -------- reference models (fitted on this format's matches only)
+    # Win model: the scale is fitted on this player's results; exp_win is each match's predicted
+    # chance to win, and won - exp_win sums to "wins above expectation".
+    scale, scale_fitted = fit_expectation_scale(df)
+    a.summary.update(win_scale=scale, win_scale_fitted=scale_fitted)
+    df["exp_win"] = expected_win_prob(df["rating_diff"], scale)
     df.loc[df["rating_diff"].isna(), "exp_win"] = np.nan
+    # Point model: expected point share from the gap and the match's scoring system.
     df["exp_point_share"] = expected_point_share(df)
+    # Measured rally share of each match (the "Rally win %" tile): strength with the side-out
+    # stretch, and the serve effect, removed. Equal to the point share in rally scoring.
+    side_out = (df["scoring"] != "RALLY").to_numpy() if "scoring" in df else np.ones(len(df), bool)
+    df["rally_share"] = rally_share_from_point_share(df["point_share"], side_out)
     df["match_no"] = np.arange(1, len(df) + 1)
     w = min(10, max(3, len(df) // 5))
     df["rolling_win_pct"] = df["won"].rolling(w, min_periods=w).mean() * 100
@@ -595,7 +704,9 @@ def analyze(df: pd.DataFrame, fmt: str, history: pd.DataFrame | None = None) -> 
             before = r[r["date"] <= r["date"].iloc[-1] - pd.Timedelta(days=90)]
             if len(before):
                 s["change_last_90d"] = s["rating_now"] - before["rating"].iloc[-1]
+    s["rally_share"] = df["rally_share"].mean() * 100
     if df["exp_win"].notna().any():
+        s["exp_win_pct"] = df["exp_win"].mean() * 100
         s["expected_wins"] = df["exp_win"].sum()
         s["wins_above_expected"] = (df["won"].astype(float) - df["exp_win"]).sum(min_count=1)
 

@@ -5,3 +5,5 @@ output/
 __pycache__/
 .claude/settings.local.json
 .DS_Store
+/scripts/
+/figures/

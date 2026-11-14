@@ -190,7 +190,9 @@ def _end_of_day(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
 
 def chart_win_form(a: Analysis) -> str:
     df, w = a.matches, a.summary["rolling_window"]
-    df = df.assign(exp_roll=df["exp_win"].rolling(w, min_periods=max(3, w // 2)).mean() * 100)
+    df = df.assign(
+        exp_roll=df["exp_win"].rolling(w, min_periods=max(3, w // 2)).mean() * 100
+    )
     daily = _end_of_day(df, ["rolling_win_pct", "exp_roll"])
     fig = go.Figure()
     fig.add_scatter(
@@ -230,10 +232,14 @@ def monthly_points(a: Analysis) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame()
     month = df["date"].dt.to_period("M").dt.to_timestamp(how="end").dt.normalize()
-    t = df.assign(month=month).groupby("month").agg(
-        matches=("won", "size"),
-        actual=("point_share", lambda x: x.mean() * 100),
-        expected=("exp_point_share", lambda x: x.mean() * 100),
+    t = (
+        df.assign(month=month)
+        .groupby("month")
+        .agg(
+            matches=("won", "size"),
+            actual=("point_share", lambda x: x.mean() * 100),
+            expected=("exp_point_share", lambda x: x.mean() * 100),
+        )
     )
     t["gap"] = t["actual"] - t["expected"]
     rc = monthly_rating_change(a)
@@ -251,8 +257,10 @@ def point_form_insight(t: pd.DataFrame) -> str:
         return ""
     up = int((above["rating_change"] > 0).sum())
     down = int((below["rating_change"] < 0).sum())
-    return (f"Blue months raised your rating {up} times out of {len(above)}; "
-            f"orange months lowered it {down} times out of {len(below)}.")
+    return (
+        f"Blue months raised your rating {up} times out of {len(above)}; "
+        f"orange months lowered it {down} times out of {len(below)}."
+    )
 
 
 def chart_point_form(a: Analysis) -> str:
@@ -264,34 +272,58 @@ def chart_point_form(a: Analysis) -> str:
     x = [f"{d:%b}<br>'{d:%y}" for d in t.index]
     fig = go.Figure()
     for xi, (_, r) in zip(x, t.iterrows()):
-        fig.add_scatter(x=[xi, xi], y=[r["expected"], r["actual"]], mode="lines", showlegend=False,
-                        line=dict(color=BLUE if r["gap"] >= 0 else ORANGE, width=6), hoverinfo="skip")
+        fig.add_scatter(
+            x=[xi, xi],
+            y=[r["expected"], r["actual"]],
+            mode="lines",
+            showlegend=False,
+            line=dict(color=BLUE if r["gap"] >= 0 else ORANGE, width=6),
+            hoverinfo="skip",
+        )
     fig.add_scatter(
-        x=x, y=t["expected"], mode="markers", name="Expected from ratings",
+        x=x,
+        y=t["expected"],
+        mode="markers",
+        name="Expected",
         marker=dict(symbol="line-ew", size=22, line=dict(width=3, color=INK2)),
         hovertemplate="expected %{y:.0f}%<extra></extra>",
     )
     fig.add_scatter(
-        x=x, y=t["actual"], mode="markers+text", name="You", showlegend=False,
-        marker=dict(size=11, color=[BLUE if g >= 0 else ORANGE for g in t["gap"]],
-                    line=dict(color=SURFACE, width=2)),
+        x=x,
+        y=t["actual"],
+        mode="markers+text",
+        name="You",
+        showlegend=False,
+        marker=dict(
+            size=11,
+            color=[BLUE if g >= 0 else ORANGE for g in t["gap"]],
+            line=dict(color=SURFACE, width=2),
+        ),
         text=[f"{v:.0f}%" for v in t["actual"]],
         textposition=["top center" if g >= 0 else "bottom center" for g in t["gap"]],
         textfont=dict(size=11, color=INK2),
         customdata=list(zip(t["matches"], t["gap"], t["rating_change"].fillna(0))),
         hovertemplate="won %{y:.0f}% of points (%{customdata[1]:+.0f} vs expected)<br>%{customdata[0]} matches"
-                      "<br>rating that month %{customdata[2]:+.3f}<extra></extra>",
+        "<br>rating that month %{customdata[2]:+.3f}<extra></extra>",
     )
-    for color, label in ((BLUE, "Above expected"), (ORANGE, "Below expected")):
-        fig.add_scatter(x=[None], y=[None], mode="markers", name=label,
-                        marker=dict(size=11, color=color), hoverinfo="skip")
+    for color, label in ((BLUE, "Above"), (ORANGE, "Below")):
+        fig.add_scatter(
+            x=[None],
+            y=[None],
+            mode="markers",
+            name=label,
+            marker=dict(size=11, color=color),
+            hoverinfo="skip",
+        )
     fig.add_hline(y=50, line=dict(color=MUTED, width=1, dash="dot"))
     lo = min(t["actual"].min(), t["expected"].min()) - 6
     hi = max(t["actual"].max(), t["expected"].max()) + 6
     fig.update_yaxes(range=[lo, hi], ticksuffix="%")
     fig.update_xaxes(type="category", tickangle=0)
-    fig.update_layout(hovermode="closest")
-    return _div(_layout(fig, "Points won per month: actual vs expected", "Point win %", 400))
+    fig = _layout(fig, "Points won per month: actual vs expected", "Point win %", 400)
+    # Short labels + tight symbols so the three entries stay on one row, even in a narrow card.
+    fig.update_layout(hovermode="closest", legend=dict(itemwidth=30, tracegroupgap=0))
+    return _div(fig)
 
 
 def chart_opp_results(a: Analysis) -> str:
@@ -482,7 +514,11 @@ def monthly_rating_change(a: Analysis) -> pd.DataFrame:
     change = month_end.diff()
     change.iloc[0] = month_end.iloc[0] - r["rating"].iloc[0]
     month = df["date"].dt.to_period("M").dt.to_timestamp(how="end").dt.normalize()
-    played = df.assign(month=month).groupby("month").agg(matches=("won", "size"), wins=("won", "sum"))
+    played = (
+        df.assign(month=month)
+        .groupby("month")
+        .agg(matches=("won", "size"), wins=("won", "sum"))
+    )
     out = played.join(change.rename("change").rename_axis("month"), how="left")
     out["rating_end"] = month_end.reindex(out.index)
     return out.dropna(subset=["change"])
@@ -514,10 +550,17 @@ def chart_impact(a: Analysis) -> str:
     )
     fig.add_hline(y=0, line=dict(color=MUTED, width=1))
     span = (max(y.max(), 0) - min(y.min(), 0)) or 0.01
-    fig.update_yaxes(range=[min(y.min(), 0) - span * 0.3, max(y.max(), 0) + span * 0.3], tickformat="+.2f")
+    fig.update_yaxes(
+        range=[min(y.min(), 0) - span * 0.3, max(y.max(), 0) + span * 0.3],
+        tickformat="+.2f",
+    )
     fig.update_xaxes(type="category", tickangle=0 if len(t) <= 12 else -45)
     fig.update_layout(hovermode="closest")
-    return _div(_layout(fig, "Rating change per month (months you played)", "Rating change", 400))
+    return _div(
+        _layout(
+            fig, "Rating change per month (months you played)", "Rating change", 400
+        )
+    )
 
 
 def chart_partners(a: Analysis) -> str:
@@ -644,7 +687,29 @@ def wins_vs_expected_tile(s: dict) -> list[str]:
     exp, above = s.get("expected_wins"), s.get("wins_above_expected")
     if exp is None or above is None or math.isnan(exp) or math.isnan(above):
         return []
-    return [tile("Wins vs expected", f"{above:+.1f}", f"{s['wins']} wins vs ~{exp:.0f} expected")]
+    return [
+        tile(
+            "Wins vs expected",
+            f"{above:+.1f}",
+            f"{s['wins']} wins vs ~{exp:.0f} expected",
+        )
+    ]
+
+
+def win_probability_tile(s: dict) -> list[str]:
+    """Average chance of winning a match given the rating gaps (win model), next to the actual win %."""
+    p = s.get("exp_win_pct")
+    if p is None or math.isnan(p):
+        return []
+    return [tile("Win probability", f"{p:.0f}%", "per match, from rating gaps")]
+
+
+def rally_tile(s: dict) -> list[str]:
+    """Average share of rallies won, estimated from the points (side-out scores un-stretched)."""
+    r = s.get("rally_share")
+    if r is None or math.isnan(r):
+        return []
+    return [tile("Rally win %", f"{r:.1f}%", "estimated from your scores")]
 
 
 def tile(label: str, value: str, sub: str = "") -> str:
@@ -671,8 +736,10 @@ def level_note(a: Analysis) -> str:
     r = lv.get("rating")
     if r is None or (isinstance(r, float) and math.isnan(r)):
         return "Your rating is unknown, so the tips are written for an intermediate level (3.5–4.0)."
-    return (f"Tips are adapted to your level: <b>{lv['name']}</b> ({lv['label']}), "
-            f"based on your current rating of {r:.3f}.")
+    return (
+        f"Tips are adapted to your level: <b>{lv['name']}</b> ({lv['label']}), "
+        f"based on your current rating of {r:.3f}."
+    )
 
 
 def tips_html(tips: list[dict]) -> str:
@@ -700,12 +767,10 @@ def opponents_section(a: Analysis) -> str:
     return f"""
 <h3>Performance by opponent rating</h3>
 <p class="takeaway">{html.escape(summary)}</p>
-<div class="grid2">
 {card(chart_opp_results(a), "Each group is opponents weaker, similar or stronger than you (their average rating minus yours). "
       "Blue bars above the orange line mean you beat the odds against that level.")}
 {card(chart_opp_rating_change(a), "How much rating you gain or lose on average in one match against each level. "
       "This shows which opponents actually move your DUPR up.")}
-</div>
 {card(chart_opp_over_time(a), "Orange above blue means you mostly play opponents rated higher than you (playing up). "
       "Playing up regularly while keeping scores close is one of the fastest ways to raise your rating.")}
 {table(t, {"matches": "Matches", "win_pct": "Win %", "exp_win_pct": "Expected win %", "point_share": "Point win %",
@@ -735,12 +800,14 @@ def section(a: Analysis) -> str:
             ),
             tile("Trend", f(s.get("trend_per_month"), "{:+.3f}"), "rating per month"),
             tile("Record", f"{s['wins']}–{s['losses']}", f"{s['win_pct']:.0f}% wins"),
+            *win_probability_tile(s),
             *wins_vs_expected_tile(s),
             tile(
                 "Point win %",
                 f"{s['point_share']:.1f}%",
                 f"games {s['games_won']}–{s['games_lost']}",
             ),
+            *rally_tile(s),
             tile(
                 "Close games",
                 f(c.get("close_win_pct"), "{:.0f}%"),
@@ -784,26 +851,20 @@ def section(a: Analysis) -> str:
       "number of matches. Months without matches are skipped. Your single best and worst matches are listed in the tables below.")}
 
 <h3>Form</h3>
-<div class="grid2">
 {card(chart_win_form(a), f"Blue = how often you won over your last {w} matches. Orange = how often the ratings say "
       "you should win. Blue above orange: you are playing above your rating.")}
 {card(chart_point_form(a), "Dot = points you won, dash = what the ratings predict. Blue = above, orange = below. " + point_form_insight(monthly_points(a)))}
-</div>
 
 {opponents_section(a)}
 
 <h3>By {period}</h3>
-<div class="grid2">
 {card(chart_periods(a), f"Bars: share of matches won each {period}. Line: share of points won.")}
 {card(chart_activity(a), f"How much you played each {period}.")}
-</div>
 
 <h3>Games and partners</h3>
-<div class="grid2">
 {card(chart_margins(a), "Right side = games won, left side = games lost. Bars near the middle are close games; "
       "far-left bars are heavy losses, which cost the most rating.")}
 {card(chart_partners(a), "How often you win with each partner. The dotted line marks 50%.")}
-</div>
 
 <h3>Evolution by {period}</h3>
 {table(a.periods.iloc[::-1], {**AGG_COLS, "rating_end": "Rating at end"}, s['period_label'])}
@@ -863,9 +924,18 @@ dl.gloss dt{font-weight:600;color:var(--ink)}dl.gloss dd{margin:0}
 """
 
 GLOSSARY = """<details><summary>What the numbers mean</summary><dl class="gloss">
-<dt>Point win %</dt><dd>Share of all rally points you won. 11-7, 9-11, 11-6 → 31 of 55 points = 56%. 50% = even.</dd>
+<dt>Point win %</dt><dd>Share of all points you won. 11-7, 9-11, 11-6 → 31 of 55 points = 56%. 50% = even.</dd>
+<dt>Expected point win %</dt><dd>The point win % your rating gap predicts. It is computed from the share of rallies you
+should win, then turned into points for each match's scoring: in side-out scoring only the server scores, which
+roughly doubles a rally edge (winning 55% of rallies ≈ 60% of the points); in rally scoring both are equal.</dd>
+<dt>Rally win %</dt><dd>Share of rallies you win, estimated from your scores. In side-out scoring only the server
+scores, which stretches a rally edge into a bigger point edge; this undoes it (60% of the points ≈ 55% of the rallies).
+In rally scoring it equals the point win %.</dd>
+<dt>Win probability</dt><dd>Your average chance of winning a match, from the rating gap between your team and the
+opponents in each match (the expected win % below, averaged over your matches).</dd>
 <dt>Expected win %</dt><dd>Your chance of winning from the rating gap between your team and the opponents
-(approximate model: a 0.25 team-rating edge ≈ 76%). DUPR's own model isn't public.</dd>
+(approximate model: how strongly a rating edge turns into wins is learned from your own matches once you have
+30 or more with known ratings; before that, a 0.25 team-rating edge ≈ 76%). DUPR's own model isn't public.</dd>
 <dt>Wins above expectation</dt><dd>Actual wins minus expected wins. Positive = you beat the ratings.</dd>
 <dt>Rating change</dt><dd>How much a match moved your DUPR rating, from DUPR's own data.</dd>
 <dt>Opponent strength</dt><dd>Your opponents' average rating minus your own rating at the time of the match.</dd>
