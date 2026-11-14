@@ -52,13 +52,16 @@ runs on DUPR's page with the user's existing session. It downloads:
 
 It then opens the app with the data gzipped in the URL `#fragment`, which browsers never send to a server.
 
-The website ([index.html](index.html)) is a static page. It runs the Python analysis in the browser with
-[Pyodide](https://pyodide.org) (Python, pandas, numpy and plotly compiled to WebAssembly), using the same
-`dupr/*.py` files as the local version (`app.py`, `analyze.py`).
+The website ([web/](web/)) is a [SvelteKit](https://svelte.dev/docs/kit) app built as a static site
+(`adapter-static`). It runs the Python analysis in the browser with [Pyodide](https://pyodide.org) (Python,
+pandas, numpy and plotly compiled to WebAssembly), using the same `dupr/*.py` files as the local version
+(`app.py`, `analyze.py`). Those files and the bookmarklet are bundled into the site at build time.
 
 | Path | What it does |
 |---|---|
-| `index.html` | The website: installs the bookmark, receives the data, runs the analysis with Pyodide, shows the report |
+| `web/` | The website (SvelteKit): installs the bookmark, receives the data, runs the analysis with Pyodide, shows the report |
+| `web/src/lib/analysis.ts` | Loads Pyodide and runs `dupr/pipeline.py` on the synced data |
+| `.github/workflows/deploy.yml` | Builds `web/` and deploys it to GitHub Pages on every push to `main` |
 | `dupr/bookmarklet.js` | The ⟳ Sync DUPR bookmark (runs on dashboard.dupr.com) |
 | `dupr/parse.py` | Turns DUPR's raw match data into a table |
 | `dupr/analysis.py` | All the statistics and the written findings |
@@ -67,7 +70,6 @@ The website ([index.html](index.html)) is a static page. It runs the Python anal
 | `dupr/demo.py` | Sample data for `analyze.py --demo` |
 | `app.py` | Optional local version of the website (Flask) |
 | `analyze.py` | Rebuild a report from the command line |
-| `.nojekyll` | Keep it: lets GitHub Pages serve files starting with `_` (like `dupr/__init__.py`) |
 
 ### Run it locally
 
@@ -82,6 +84,15 @@ uv run analyze.py             # rebuild the report from the last local sync (dat
 
 The local app gives its own **⟳ Sync DUPR (local)** bookmark, which sends the data to `127.0.0.1:8000` instead of the website, so it only works while `app.py` is running.
 
-To test the static website locally: `uv run python -m http.server 8000`, then open <http://127.0.0.1:8000>.
+To work on the website (requires Node 22.17+):
+
+```bash
+cd web
+npm install
+npm run dev                   # http://localhost:5173, reloads on change (also picks up edits to dupr/*.py)
+npm run build                 # static site in web/build
+```
+
+The site is deployed by GitHub Actions: in the repo's **Settings → Pages**, set **Source** to **GitHub Actions**.
 
 Personal data (`data/`, `output/`) is gitignored.
