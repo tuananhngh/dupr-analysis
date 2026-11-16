@@ -94,34 +94,30 @@ A finding whose `id` has no sentence is skipped, so a new rule never shows raw c
 | `dupr/demo.py` | Sample data (the website's example report, `analyze.py --demo`) |
 | `app.py` | Serves the built website locally, and saves each sync to `data/raw/` |
 | `analyze.py` | Runs the analysis from the command line and writes `output/report.json` and CSV tables |
+| `justfile` | The project commands (`just` lists them) |
 
 ### Run it locally
 
-Requires [uv](https://docs.astral.sh/uv/), which installs Python 3.12+ for you if needed, and
-[Node](https://nodejs.org) 22.17 or later to build the website.
+Requires [uv](https://docs.astral.sh/uv/), which installs Python 3.12+ for you if needed,
+[Node](https://nodejs.org) 22.17 or later, and [just](https://just.systems) (`brew install just`).
+Run `just` to list the commands:
 
 ```bash
-uv sync
-(cd web && npm install && npm run build)   # build the site once (and after changes)
-uv run app.py                 # the website on http://127.0.0.1:8000
-uv run analyze.py --demo      # analysis of sample data, no DUPR account needed
-uv run analyze.py             # analysis of the last local sync (data/raw/) into output/
+just setup      # once: install the Python and website dependencies
+just app        # build the site and run it on http://127.0.0.1:8000
+just dev        # work on the website: http://localhost:5173, reloads on change
+just check      # type-check the website (also catches text missing from the French file)
+just build      # static site in web/build
+just demo       # analysis of the sample data into output/ (no DUPR account needed)
+just analyze    # analysis of the last local sync (data/raw/) into output/
 ```
 
-The bookmark you drag from the local page sends the data to `127.0.0.1:8000` instead of the website, so it only
-works while `app.py` is running. Each sync received there is also saved to `data/raw/`.
+With `just app`, the bookmark you drag from the local page sends the data to `127.0.0.1:8000` instead of
+the website, so it only works while the app is running. Each sync received there is also saved to
+`data/raw/`. `just dev` picks up edits to `dupr/*.py` too, but doesn't save syncs.
 
-To work on the website:
-
-```bash
-cd web
-npm install
-npm run dev                   # http://localhost:5173, reloads on change (also picks up edits to dupr/*.py)
-npm run check                 # type-check (also catches text missing from one language)
-npm run build                 # static site in web/build
-```
-
-Add `#demo` to the address (http://localhost:5173/#demo) to open the example report directly.
+Add `#demo` to the address (for example http://localhost:5173/#demo) to open the example report directly.
+If Homebrew's `node@26` is installed, the justfile uses it even when your default `node` is older.
 
 The site is deployed by GitHub Actions: in the repo's **Settings → Pages**, set **Source** to **GitHub Actions**.
 

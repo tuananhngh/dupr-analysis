@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """Local version of the website: serves the built site (web/build) on your computer.
 
-  cd web && npm install && npm run build      # once, and after changing the site or dupr/*.py
-  uv run app.py                               # opens http://127.0.0.1:8000
+  just app      # builds web/ and runs this on http://127.0.0.1:8000 (`just setup` once before)
 
 It is the same site as the online one: the analysis runs in your browser (Python via Pyodide),
 and the ⟳ Sync DUPR bookmark you drag from this page sends your data back to this local page.
 Your password never goes through it. Each sync is also saved to data/raw/ (for analyze.py and
-the scripts). For working on the site, `npm run dev` in web/ is faster.
+the scripts). For working on the site, `just dev` is faster.
 """
 from __future__ import annotations
 
@@ -41,7 +40,7 @@ def save():
 @app.get("/<path:path>")
 def site(path: str):
     if not (SITE / "index.html").exists():
-        abort(500, "The site isn't built yet: run `cd web && npm install && npm run build`.")
+        abort(500, "The site isn't built yet: run `just build` (or start the app with `just app`).")
     return send_from_directory(SITE, path if (SITE / path).is_file() else "index.html")
 
 
