@@ -1,11 +1,11 @@
-"""Save synced DUPR data and build the report (shared by the web app and analyze.py)."""
+"""Decode synced DUPR data and run the analysis (shared by the website, app.py and analyze.py)."""
 from __future__ import annotations
 
 import json
 from pathlib import Path
 from typing import Callable
 
-from . import analysis, parse, report
+from . import analysis, export, parse
 
 Log = Callable[[str], None]
 
@@ -15,7 +15,11 @@ def _save(obj, path: Path) -> None:
     path.write_text(json.dumps(obj, indent=2, ensure_ascii=False))
 
 
-def build_report(profile: dict, raw_matches: list, history: dict, out: Path, log: Log = print) -> Path:
+def build_data(profile: dict, raw_matches: list, history: dict, out: Path | None = None, log: Log = print) -> dict:
+    """Parse and analyse the matches; return the report data (see export.py) for the website.
+
+    With `out`, also writes the tables as CSV and the data as report.json there.
+    """
     player_id = profile.get("id")
     df = parse.parse_matches(raw_matches, player_id)
     log(f"Parsed {len(df)} of {len(raw_matches)} matches for player {player_id}")
@@ -24,26 +28,41 @@ def build_report(profile: dict, raw_matches: list, history: dict, out: Path, log
     if df["rating_before"].isna().all():
         log("Warning: no per-match ratings found; rating curve comes from rating history only")
 
-    out.mkdir(parents=True, exist_ok=True)
-    df.to_csv(out / "matches.csv", index=False)
     results = []
     for fmt in ("DOUBLES", "SINGLES"):
         if (df["format"] == fmt).any():
             a = analysis.analyze(df, fmt, history.get(fmt))
             results.append(a)
-            log(f"=== {fmt} ===")
-            for line in a.insights:
-                log(f" • {line}")
-            if a.periods is not None:
-                a.periods.to_csv(out / f"periods_{fmt.lower()}.csv")
-            if a.partners is not None:
-                a.partners.to_csv(out / f"partners_{fmt.lower()}.csv")
+            log(f"{fmt.lower()}: {len(a.matches)} matches, findings: {', '.join(f['id'] for f in a.insights)}; "
+                f"tips: {', '.join(t['id'] for t in a.tips) or 'none'}")
 
     name = profile.get("fullName") or (profile.get("_player") or {}).get("fullName") or f"Player {player_id}"
-    path = out / "report.html"
-    report.render(results, name, path)
-    log(f"Report written: {path}")
-    return path
+    data = export.report_data(results, name)
+    if out is not None:
+        out.mkdir(parents=True, exist_ok=True)
+        df.to_csv(out / "matches.csv", index=False)
+        for a in results:
+            if a.periods is not None:
+                a.periods.to_csv(out / f"periods_{a.fmt.lower()}.csv")
+            if a.partners is not None:
+                a.partners.to_csv(out / f"partners_{a.fmt.lower()}.csv")
+        (out / "report.json").write_text(export.to_json(data), encoding="utf-8")
+        log(f"Data written to {out}")
+    return data
+
+
+def report_json(payload: str) -> str:
+    """What the website calls (in Pyodide): sync payload in, report data as a JSON string out."""
+    data = decode_sync_payload(payload)
+    history = {k.upper(): parse.parse_rating_history(v) for k, v in (data.get("ratingHistory") or {}).items()}
+    return export.to_json(build_data(data["profile"], data["matches"], history, log=lambda m: None))
+
+
+def demo_json() -> str:
+    """Report data for the built-in sample player (the website's "See an example" link)."""
+    from . import demo
+    profile, matches = demo.generate()
+    return export.to_json(build_data(profile, matches, {}, log=lambda m: None))
 
 
 def load_raw(raw_dir: Path) -> tuple[dict, list, dict]:
