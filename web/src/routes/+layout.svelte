@@ -1,17 +1,21 @@
 <script lang="ts">
 	import favicon from '#lib/assets/favicon.svg';
+	import { onMount } from 'svelte';
+	import { i18n, initLang, t } from '#lib/i18n.svelte.ts';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
+
+	onMount(initLang);
+	$effect(() => {
+		document.documentElement.lang = i18n.lang;
+	});
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<title>DUPR Analysis</title>
-	<meta
-		name="description"
-		content="See how your pickleball game evolves: your DUPR rating, form, partners, opponents and what to work on."
-	/>
+	<title>{t('docTitle')}</title>
+	<meta name="description" content={t('description')} />
 </svelte:head>
 
 {@render children()}

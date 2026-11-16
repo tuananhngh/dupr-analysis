@@ -8,7 +8,10 @@ const sources = import.meta.glob('../../../dupr/*.py', {
 	eager: true
 }) as Record<string, string>;
 
-type Progress = (pct: number, text: string) => void;
+import type { Key } from './i18n.svelte.ts';
+
+/** Reports progress with a translation key (see i18n.svelte.ts). */
+type Progress = (pct: number, step: Key) => void;
 type Pyodide = {
 	loadPackage(pkgs: string[]): Promise<void>;
 	runPythonAsync(code: string): Promise<unknown>;
@@ -36,12 +39,12 @@ let ready: Promise<Pyodide> | null = null;
 
 function loadPython(progress: Progress): Promise<Pyodide> {
 	ready ??= (async () => {
-		progress(10, 'Loading the analysis engine (first time can take 10–20 seconds)…');
+		progress(10, 'loadEngine');
 		if (!window.loadPyodide) await loadScript(PYODIDE_URL);
 		const py = await window.loadPyodide!();
-		progress(35, 'Loading data tools…');
+		progress(35, 'loadData');
 		await py.loadPackage(['numpy', 'pandas', 'micropip']);
-		progress(60, 'Loading charts…');
+		progress(60, 'loadCharts');
 		await py.runPythonAsync('import micropip\nawait micropip.install("plotly==7.1.0")');
 		py.FS.mkdirTree('/home/pyodide/dupr');
 		for (const f of PY_FILES) {
@@ -60,7 +63,7 @@ function loadPython(progress: Progress): Promise<Pyodide> {
 /** Turn a sync payload (what the bookmark puts in #d=…) into the HTML report. */
 export async function buildReport(payload: string, progress: Progress): Promise<string> {
 	const py = await loadPython(progress);
-	progress(80, 'Analysing your matches…');
+	progress(80, 'analysing');
 	py.globals.set('payload', payload);
 	const html = await py.runPythonAsync(`
 from pathlib import Path
@@ -71,6 +74,6 @@ data = decode_sync_payload(payload)
 save_sync(data, Path("/tmp/dupr/raw"), lambda m: None)
 build_report(*load_raw(Path("/tmp/dupr/raw")), Path("/tmp/dupr/out"), lambda m: None).read_text()
 `);
-	progress(100, 'Done');
+	progress(100, 'done');
 	return html as string;
 }

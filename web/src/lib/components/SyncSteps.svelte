@@ -1,34 +1,27 @@
 <script lang="ts">
+	import { t } from '#lib/i18n.svelte.ts';
+
 	let { href }: { href: string } = $props();
 
 	function explain(e: MouseEvent) {
 		e.preventDefault();
-		alert('Drag this button to your bookmarks bar, then click it while you are on dashboard.dupr.com.');
+		alert(t('dragAlert'));
 	}
 </script>
 
+<!-- The step texts are our own fixed strings (i18n.svelte.ts) with a little markup, so {@html} is safe. -->
 <div class="card">
-	<strong>Get your report</strong>
+	<strong>{t('getReport')}</strong>
 	<ol class="steps">
 		<li>
-			<b>Once:</b> drag this button to your bookmarks bar
-			<span class="small">(show the bar with ⌘⇧B on Mac, Ctrl+Shift+B on Windows)</span><br />
+			{@html t('step1')}<br />
 			<!-- svelte-ignore a11y_invalid_attribute -->
 			<a class="bm" href={href || '#'} onclick={explain}>⟳ Sync DUPR</a>
 		</li>
-		<li>
-			Open <a href="https://dashboard.dupr.com" target="_blank" rel="noopener">dashboard.dupr.com</a> and
-			log in as usual.
-		</li>
-		<li>
-			Click the <b>⟳ Sync DUPR</b> bookmark. Your matches are downloaded and you come back here to your
-			report.
-		</li>
+		<li>{@html t('step2')}</li>
+		<li>{@html t('step3')}</li>
 	</ol>
-	<p class="small">
-		You log in on DUPR's own site: your password never goes through this page. Your data stays in your
-		browser. It is never uploaded anywhere. Works on a computer (Chrome, Edge, Firefox, Safari).
-	</p>
+	<p class="small">{t('privacy')}</p>
 </div>
 
 <style>

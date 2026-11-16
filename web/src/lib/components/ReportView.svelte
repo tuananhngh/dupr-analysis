@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '#lib/i18n.svelte.ts';
+
 	let { html, onback }: { html: string; onback: () => void } = $props();
 
 	// The report is a standalone HTML document (plotly charts included): show it from a blob URL.
@@ -18,11 +20,11 @@
 
 <div class="view">
 	<div class="bar">
-		<strong>DUPR performance report</strong>
-		<button class="secondary" onclick={download}>Download report</button>
-		<button class="secondary" onclick={onback}>Back</button>
+		<strong>{t('reportTitle')}</strong>
+		<button class="secondary" onclick={download}>{t('download')}</button>
+		<button class="secondary" onclick={onback}>{t('back')}</button>
 	</div>
-	<iframe src={url} title="Your DUPR performance report"></iframe>
+	<iframe src={url} title={t('reportFrame')}></iframe>
 </div>
 
 <style>

@@ -9,7 +9,10 @@
 	import LastSyncCard from '#lib/components/LastSyncCard.svelte';
 	import ProgressCard from '#lib/components/ProgressCard.svelte';
 	import ReportView from '#lib/components/ReportView.svelte';
+	import LangSwitch from '#lib/components/LangSwitch.svelte';
+	import { t, type Key } from '#lib/i18n.svelte.ts';
 
+	// `step` is a translation key while building; on error it holds the raw error message.
 	type Job = { pct: number; step: string; error: boolean };
 
 	let bookmark = $state('');
@@ -21,9 +24,9 @@
 	const busy = $derived(job !== null && !job.error);
 
 	async function run(payload: string) {
-		job = { pct: 0, step: 'Starting…', error: false };
+		job = { pct: 0, step: 'starting', error: false };
 		try {
-			reportHtml = await buildReport(payload, (pct, step) => {
+			reportHtml = await buildReport(payload, (pct, step: Key) => {
 				if (job) Object.assign(job, { pct, step });
 			});
 			job = null;
@@ -61,11 +64,11 @@
 	<ReportView html={reportHtml} onback={() => (showReport = false)} />
 {:else}
 	<main>
-		<h1>DUPR performance analysis</h1>
-		<p>
-			See how your pickleball game evolves: your rating over time, form, results against what the ratings
-			predict, partners, opponents and what to work on.
-		</p>
+		<div class="top">
+			<h1>{t('title')}</h1>
+			<LangSwitch />
+		</div>
+		<p>{t('intro')}</p>
 
 		{#if lastSync && !busy}
 			<LastSyncCard at={lastSync.at} onopen={() => run(lastSync!.payload)} onforget={forget} />
@@ -84,6 +87,12 @@
 		max-width: 600px;
 		margin: 48px auto;
 		padding: 0 16px;
+	}
+	.top {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 12px;
 	}
 	h1 {
 		font-size: 26px;

@@ -1,18 +1,21 @@
 <script lang="ts">
+	import { locale, t } from '#lib/i18n.svelte.ts';
+
 	let { at, onopen, onforget }: { at: number; onopen: () => void; onforget: () => void } = $props();
 
-	const when = $derived.by(() => {
+	const synced = $derived.by(() => {
 		const d = new Date(at);
-		const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-		return `${d.toLocaleDateString()} at ${time}`;
+		const date = d.toLocaleDateString(locale());
+		const time = d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+		return t('syncedOn', date, time);
 	});
 </script>
 
 <div class="card">
-	<strong>Your last sync</strong>
-	<p>Synced on {when}. To update it, click the bookmark on dupr.com again.</p>
+	<strong>{t('lastSync')}</strong>
+	<p>{synced}</p>
 	<div class="row">
-		<button onclick={onopen}>Open my report</button>
-		<button class="link" onclick={onforget}>Forget my data</button>
+		<button onclick={onopen}>{t('openLast')}</button>
+		<button class="link" onclick={onforget}>{t('forget')}</button>
 	</div>
 </div>

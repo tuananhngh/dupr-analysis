@@ -1,11 +1,14 @@
 <script lang="ts">
+	import { t, type Key } from '#lib/i18n.svelte.ts';
+
+	// `step` is a translation key, or the raw error message when `error` is set.
 	let { pct, step, error }: { pct: number; step: string; error: boolean } = $props();
 </script>
 
 <div class="card">
-	<strong class:err={error}>{error ? 'Could not build the report' : 'Building your report…'}</strong>
+	<strong class:err={error}>{error ? t('failed') : t('building')}</strong>
 	<div class="progress"><div style:width="{pct}%"></div></div>
-	<p class="small">{step}</p>
+	<p class="small">{error ? step : t(step as Key)}</p>
 </div>
 
 <style>
