@@ -1,14 +1,16 @@
 // Runs the Python analysis (dupr/*.py, the same files as the local version) in the browser with Pyodide.
+// Python only computes: it returns the report data as JSON, and the page writes the text and draws the charts.
+import type { Key } from './i18n.svelte.ts';
+import type { ReportData } from './report/types.ts';
+
 const PYODIDE_URL = 'https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js';
-const PY_FILES = ['__init__.py', 'parse.py', 'analysis.py', 'report.py', 'pipeline.py'];
+const PY_FILES = ['__init__.py', 'parse.py', 'analysis.py', 'export.py', 'demo.py', 'pipeline.py'];
 
 const sources = import.meta.glob('../../../dupr/*.py', {
 	query: '?raw',
 	import: 'default',
 	eager: true
 }) as Record<string, string>;
-
-import type { Key } from './i18n.svelte.ts';
 
 /** Reports progress with a translation key (see i18n.svelte.ts). */
 type Progress = (pct: number, step: Key) => void;
@@ -43,9 +45,7 @@ function loadPython(progress: Progress): Promise<Pyodide> {
 		if (!window.loadPyodide) await loadScript(PYODIDE_URL);
 		const py = await window.loadPyodide!();
 		progress(35, 'loadData');
-		await py.loadPackage(['numpy', 'pandas', 'micropip']);
-		progress(60, 'loadCharts');
-		await py.runPythonAsync('import micropip\nawait micropip.install("plotly==7.1.0")');
+		await py.loadPackage(['numpy', 'pandas']);
 		py.FS.mkdirTree('/home/pyodide/dupr');
 		for (const f of PY_FILES) {
 			const code = sources[`../../../dupr/${f}`];
@@ -60,20 +60,21 @@ function loadPython(progress: Progress): Promise<Pyodide> {
 	return ready;
 }
 
-/** Turn a sync payload (what the bookmark puts in #d=…) into the HTML report. */
-export async function buildReport(payload: string, progress: Progress): Promise<string> {
+/** Turn a sync payload (what the bookmark puts in #d=…) into the report data. */
+export async function buildReport(payload: string, progress: Progress): Promise<ReportData> {
 	const py = await loadPython(progress);
 	progress(80, 'analysing');
 	py.globals.set('payload', payload);
-	const html = await py.runPythonAsync(`
-from pathlib import Path
-import shutil
-from dupr.pipeline import decode_sync_payload, save_sync, load_raw, build_report
-shutil.rmtree("/tmp/dupr", ignore_errors=True)
-data = decode_sync_payload(payload)
-save_sync(data, Path("/tmp/dupr/raw"), lambda m: None)
-build_report(*load_raw(Path("/tmp/dupr/raw")), Path("/tmp/dupr/out"), lambda m: None).read_text()
-`);
+	const json = await py.runPythonAsync('from dupr.pipeline import report_json\nreport_json(payload)');
 	progress(100, 'done');
-	return html as string;
+	return JSON.parse(json as string);
+}
+
+/** Report data for the built-in sample player. */
+export async function buildDemo(progress: Progress): Promise<ReportData> {
+	const py = await loadPython(progress);
+	progress(80, 'analysing');
+	const json = await py.runPythonAsync('from dupr.pipeline import demo_json\ndemo_json()');
+	progress(100, 'done');
+	return JSON.parse(json as string);
 }

@@ -26,3 +26,11 @@ export const lastSyncStore = {
 		}
 	}
 };
+
+/** When the site is served by the local app (uv run app.py), also save the sync to data/raw/ there. */
+export function saveLocally(payload: string) {
+	if (location.hostname !== '127.0.0.1' && location.hostname !== 'localhost') return;
+	fetch('/api/save', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: payload }).catch(() => {
+		/* not the local app (e.g. npm run dev): nothing to do */
+	});
+}

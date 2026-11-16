@@ -1,41 +1,25 @@
 <script lang="ts">
 	import { t } from '#lib/i18n.svelte.ts';
+	import LangSwitch from './LangSwitch.svelte';
+	import Report from '#lib/report/Report.svelte';
+	import type { ReportData } from '#lib/report/types.ts';
 
-	let { html, onback }: { html: string; onback: () => void } = $props();
-
-	// The report is a standalone HTML document (plotly charts included): show it from a blob URL.
-	const url = $derived(URL.createObjectURL(new Blob([html], { type: 'text/html' })));
-	$effect(() => {
-		const u = url;
-		return () => URL.revokeObjectURL(u);
-	});
-
-	function download() {
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `dupr-report-${new Date().toISOString().slice(0, 10)}.html`;
-		a.click();
-	}
+	let { data, demo = false, onback }: { data: ReportData; demo?: boolean; onback: () => void } = $props();
 </script>
 
-<div class="view">
-	<div class="bar">
-		<strong>{t('reportTitle')}</strong>
-		<button class="secondary" onclick={download}>{t('download')}</button>
-		<button class="secondary" onclick={onback}>{t('back')}</button>
-	</div>
-	<iframe src={url} title={t('reportFrame')}></iframe>
+<div class="bar">
+	<strong>{t('reportTitle')}</strong>
+	<LangSwitch />
+	<button class="secondary" onclick={() => window.print()}>{t('print')}</button>
+	<button class="secondary" onclick={onback}>{t('back')}</button>
 </div>
+<Report {data} {demo} />
 
 <style>
-	.view {
-		position: fixed;
-		inset: 0;
-		display: flex;
-		flex-direction: column;
-		background: var(--bg);
-	}
 	.bar {
+		position: sticky;
+		top: 0;
+		z-index: 10;
 		display: flex;
 		gap: 10px;
 		align-items: center;
@@ -51,9 +35,12 @@
 		padding: 6px 12px;
 		font-size: 14px;
 	}
-	iframe {
-		flex: 1;
-		width: 100%;
-		border: 0;
+	.bar :global(.lang) {
+		margin-top: 0;
+	}
+	@media print {
+		.bar {
+			display: none;
+		}
 	}
 </style>

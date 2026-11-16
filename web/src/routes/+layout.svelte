@@ -1,4 +1,5 @@
 <script lang="ts">
+	import 'layerchart/core.css';
 	import favicon from '#lib/assets/favicon.svg';
 	import { onMount } from 'svelte';
 	import { i18n, initLang, t } from '#lib/i18n.svelte.ts';
@@ -31,9 +32,29 @@
 		--accent: #2a78d6;
 		--accent-soft: #e3edfa;
 		--err: #b42318;
+		--muted: #8a8984;
+		--faint: #c9c8c2;
+		/* The report's two data colors: blue = win / above expectation, orange = loss / below. */
+		--blue: #2a78d6;
+		--orange: #eb6834;
+		/* LayerChart theme: text and axes, label halo and tooltip background, default mark color.
+		   On :root because LayerChart moves tooltips to <body>. */
+		--color-surface-content: var(--ink2);
+		--color-surface-100: var(--surface);
+		--color-primary: var(--blue);
 	}
 	:global(*) {
 		box-sizing: border-box;
+	}
+	/* Chart axis text (LayerChart's default is a little small). */
+	:global(.lc-axis-tick-label),
+	:global(.lc-axis-label) {
+		font-size: 12px;
+	}
+	@media print {
+		:global(:root) {
+			--bg: #fff;
+		}
 	}
 	:global(html),
 	:global(body) {
