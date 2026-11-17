@@ -336,6 +336,48 @@ export const fr: Messages = {
 		closeSub: (n) => `gagnés · ${n} jeux à ≤ 2 pts d’écart`
 	},
 
+	ui: {
+		tabs: {
+			overview: 'Vue d’ensemble',
+			form: 'Forme',
+			opponents: 'Adversaires',
+			partners: 'Partenaires et jeux',
+			games: 'Jeux',
+			matches: 'Matchs',
+			details: 'Toutes les stats'
+		},
+		ratingLabel: 'Note DUPR',
+		since: (d) => `depuis ${d}`,
+		peak: (v) => `Pic ${v}`,
+		record: 'Bilan',
+		winRate: (v) => `${v} de victoires`,
+		matchesPlayed: (n) => `${n} matchs`,
+		lastN: (n) => `${n} derniers`,
+		streakNow: (won, n) =>
+			n === 1 ? `${won ? 'Gagné' : 'Perdu'} le dernier match` : `${n} ${won ? 'victoires' : 'défaites'} d’affilée`,
+		highlights: 'Faits marquants',
+		longestStreak: 'Plus longue série de victoires',
+		inARow: 'matchs d’affilée',
+		bestMatch: 'Meilleur match',
+		bestPartner: 'Meilleur partenaire',
+		partnerSub: (p, n) => `${p} de victoires en ${n} matchs`,
+		nemesis: 'Adversaire le plus coriace',
+		nemesisSub: (w, l) => `votre bilan : ${w}–${l}`,
+		closeGames: 'Jeux serrés gagnés',
+		closeSub: (n) => `sur ${n} jeux décidés à ≤2 pts`,
+		vsOdds: 'Au-dessus des pronostics',
+		vsOddsSub: (w, e) => `${w} victoires pour ~${e} attendues`,
+		workOn: 'À travailler',
+		insights: 'Ce que disent les chiffres',
+		ratingNow: 'Votre note',
+		recentMatches: 'Derniers matchs',
+		showAll: (n) => `Voir les ${n} matchs`,
+		showFewer: 'Voir moins',
+		with: 'avec',
+		vs: 'contre',
+		allNumbers: 'Tous les chiffres'
+	},
+
 	h: {
 		findings: 'À retenir',
 		improve: 'Comment progresser',

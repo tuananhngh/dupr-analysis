@@ -339,6 +339,48 @@ export const en = {
 		closeSub: (n: number) => `won · ${n} games decided by ≤2 pts`
 	},
 
+	ui: {
+		tabs: {
+			overview: 'Overview',
+			form: 'Form',
+			opponents: 'Opponents',
+			partners: 'Partners & games',
+			games: 'Games',
+			matches: 'Matches',
+			details: 'All stats'
+		},
+		ratingLabel: 'DUPR rating',
+		since: (d: string) => `since ${d}`,
+		peak: (v: string) => `Peak ${v}`,
+		record: 'Record',
+		winRate: (v: string) => `${v} wins`,
+		matchesPlayed: (n: number) => `${n} matches`,
+		lastN: (n: number) => `Last ${n}`,
+		streakNow: (won: boolean, n: number) =>
+			n === 1 ? `${won ? 'Won' : 'Lost'} last match` : `${won ? 'Won' : 'Lost'} last ${n} in a row`,
+		highlights: 'Highlights',
+		longestStreak: 'Longest win streak',
+		inARow: 'matches in a row',
+		bestMatch: 'Best match',
+		bestPartner: 'Best partner',
+		partnerSub: (p: string, n: number) => `${p} wins in ${n} matches`,
+		nemesis: 'Toughest opponent',
+		nemesisSub: (w: number, l: number) => `you are ${w}–${l} against them`,
+		closeGames: 'Close games won',
+		closeSub: (n: number) => `of ${n} games decided by ≤2 pts`,
+		vsOdds: 'Beating the odds',
+		vsOddsSub: (w: number, e: string) => `${w} wins vs ~${e} expected`,
+		workOn: 'What to work on',
+		insights: 'What the numbers say',
+		ratingNow: 'Your rating',
+		recentMatches: 'Recent matches',
+		showAll: (n: number) => `Show all ${n} matches`,
+		showFewer: 'Show fewer',
+		with: 'with',
+		vs: 'vs',
+		allNumbers: 'All numbers'
+	},
+
 	h: {
 		findings: 'Key findings',
 		improve: 'How to improve',
