@@ -1,4 +1,6 @@
-# DUPR performance analysis
+# PickleStats
+
+Performance analysis for DUPR players.
 
 See how your pickleball game evolves: your DUPR rating over time, your form, your results against what the
 ratings predict, your partners, your opponents, and concrete things to work on.

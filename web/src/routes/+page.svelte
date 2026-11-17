@@ -13,6 +13,7 @@
 	import ReportView from '#lib/components/ReportView.svelte';
 	import LangSwitch from '#lib/components/LangSwitch.svelte';
 	import ReportPreview from '#lib/components/ReportPreview.svelte';
+	import logo from '#lib/assets/favicon.svg';
 	import { t, type Key } from '#lib/i18n.svelte.ts';
 
 	// `step` is a translation key while building; on error it holds the raw error message.
@@ -83,7 +84,10 @@
 {:else}
 	<main>
 		<nav class="top">
-			<span class="brand"><span class="logo" aria-hidden="true"></span>{t('title')}</span>
+			<span class="brand">
+				<img src={logo} alt="" width="30" height="30" />
+				<span>{t('title')}<span class="tagline">{t('tagline')}</span></span>
+			</span>
 			<LangSwitch />
 		</nav>
 
@@ -147,14 +151,18 @@
 		font-weight: 700;
 		font-size: 17px;
 	}
-	.logo {
-		width: 26px;
-		height: 26px;
-		border-radius: 50%;
-		background:
-			radial-gradient(circle at 35% 35%, #fff 0 12%, transparent 13%),
-			radial-gradient(circle at 65% 60%, #fff 0 10%, transparent 11%),
-			var(--accent);
+	.tagline {
+		margin-left: 10px;
+		padding-left: 10px;
+		border-left: 1px solid var(--faint);
+		font-weight: 500;
+		font-size: 14px;
+		color: var(--ink2);
+	}
+	@media (max-width: 520px) {
+		.tagline {
+			display: none;
+		}
 	}
 	.top :global(.lang) {
 		margin-top: 0;

@@ -3,13 +3,14 @@
 	import LangSwitch from './LangSwitch.svelte';
 	import Report from '#lib/report/Report.svelte';
 	import { printReport } from '#lib/report/print.svelte.ts';
+	import logo from '#lib/assets/favicon.svg';
 	import type { ReportData } from '#lib/report/types.ts';
 
 	let { data, demo = false, onback }: { data: ReportData; demo?: boolean; onback: () => void } = $props();
 </script>
 
 <div class="bar">
-	<strong>{t('reportTitle')}</strong>
+	<strong><img src={logo} alt="" width="22" height="22" />{t('reportTitle')}</strong>
 	<LangSwitch />
 	<button class="secondary" onclick={printReport}>{t('print')}</button>
 	<button class="secondary" onclick={onback}>{t('back')}</button>
@@ -31,6 +32,9 @@
 	}
 	.bar strong {
 		margin-right: auto;
+		display: flex;
+		align-items: center;
+		gap: 8px;
 	}
 	.bar button {
 		padding: 6px 12px;

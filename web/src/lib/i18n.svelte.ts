@@ -3,10 +3,11 @@
 const LANG_KEY = 'dupr-analysis:lang';
 
 const en = {
-	docTitle: 'DUPR Analysis',
+	docTitle: 'PickleStats · Performance analysis for DUPR players',
 	description:
 		'See how your pickleball game evolves: your DUPR rating, form, partners, opponents and what to work on.',
-	title: 'DUPR performance analysis',
+	title: 'PickleStats',
+	tagline: 'Performance analysis for DUPR players',
 	heroTitle: 'Your pickleball game, by the numbers',
 	heroSub:
 		'Turn your DUPR matches into a clear picture: how your rating moves, your form, who you play best with, which opponents give you trouble, and what to work on next.',
@@ -61,10 +62,11 @@ const en = {
 export type Key = keyof typeof en;
 
 const fr: typeof en = {
-	docTitle: 'Analyse DUPR',
+	docTitle: 'PickleStats · Analyse de performance pour les joueurs DUPR',
 	description:
 		'Suivez l\'évolution de votre jeu de pickleball : votre note DUPR, votre forme, vos partenaires, vos adversaires et les points à travailler.',
-	title: 'Analyse de performance DUPR',
+	title: 'PickleStats',
+	tagline: 'Analyse de performance pour les joueurs DUPR',
 	heroTitle: 'Votre jeu de pickleball, en chiffres',
 	heroSub:
 		'Transformez vos matchs DUPR en une vue claire : l’évolution de votre note, votre forme, avec qui vous gagnez le plus, quels adversaires vous posent problème et quoi travailler ensuite.',
