@@ -5,7 +5,7 @@
 	import { m } from '../messages.ts';
 	import { date, pct, timeTicks } from '../format.ts';
 	import type { FormatData } from '../types.ts';
-	import { TEAL, MUTED, ORANGE, PAD, toDate } from './common.ts';
+	import { TEAL, MUTED, ORANGE, PAD, toDate, timeTickCount } from './common.ts';
 	import Legend from './Legend.svelte';
 
 	let { d }: { d: FormatData } = $props();
@@ -31,9 +31,10 @@
 		padding={{ ...PAD, top: 22, right: 24 }}
 		tooltipContext={{ mode: 'bisect-x' }}
 	>
+		{#snippet children({ context })}
 		<Layer type="svg">
 			<Axis placement="left" grid format={(v: number) => pct(v)} ticks={[0, 25, 50, 75, 100]} />
-			<Axis placement="bottom" rule format={timeTicks(rows[0].day, rows[rows.length - 1].day)} ticks={6} />
+			<Axis placement="bottom" rule format={timeTicks(rows[0].day, rows[rows.length - 1].day)} ticks={timeTickCount(context.width)} />
 			<Rule y={50} stroke={MUTED} dashArray="2 3" />
 			{#if expected.length}
 				<Spline data={expected} y="expected" stroke={ORANGE} stroke-dasharray="4 3" strokeWidth={2} />
@@ -53,6 +54,7 @@
 				</Tooltip.List>
 			{/snippet}
 		</Tooltip.Root>
+		{/snippet}
 	</Chart>
 </div>
 

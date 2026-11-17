@@ -7,7 +7,7 @@
 	import { m } from '../messages.ts';
 	import { date, num, rating, signed, timeTicks } from '../format.ts';
 	import type { FormatData } from '../types.ts';
-	import { TEAL, MUTED, ORANGE, PAD, SURFACE, rangeStart, signColor, toDate } from './common.ts';
+	import { TEAL, MUTED, ORANGE, PAD, SURFACE, rangeStart, signColor, toDate, timeTickCount } from './common.ts';
 	import Legend from './Legend.svelte';
 	import RangeButtons, { type Range } from './RangeButtons.svelte';
 
@@ -93,7 +93,7 @@
 		{#snippet children({ context })}
 			<Layer type="svg">
 				<Axis placement="left" grid format={(v: number) => num(v, 2)} ticks={5} />
-				<Axis placement="bottom" rule format={timeTicks(start, last)} ticks={6} />
+				<Axis placement="bottom" rule format={timeTicks(start, last)} ticks={timeTickCount(context.width)} />
 				<Spline data={line} curve={curveStepAfter} stroke={TEAL} strokeWidth={2} />
 				{#if trend.length}
 					<Spline data={trend} stroke={MUTED} stroke-dasharray="5 4" strokeWidth={1.5} />
