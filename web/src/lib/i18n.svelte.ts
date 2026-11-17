@@ -1,6 +1,6 @@
 // Front-page language (English / French). Saved per browser; defaults to the browser's language.
 // The report itself is in English.
-const LANG_KEY = 'dupr-analysis:lang';
+const LANG_KEY = 'picklestats:lang';
 
 const en = {
 	docTitle: 'PickleStats · Performance analysis for DUPR players',

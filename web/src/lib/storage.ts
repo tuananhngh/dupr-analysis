@@ -1,5 +1,5 @@
 // The last sync is kept in this browser only (localStorage), so the report can be reopened later.
-const STORE_KEY = 'dupr-analysis:last-sync';
+const STORE_KEY = 'picklestats:last-sync';
 
 export type LastSync = { payload: string; at: number };
 
