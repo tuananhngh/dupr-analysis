@@ -1,5 +1,6 @@
 <script lang="ts" module>
-	export type Column<R> = { label: string; value: (row: R) => string | number; num?: boolean };
+	// Cells stay on one line unless `wrap` is set (for long free text such as player names).
+	export type Column<R> = { label: string; value: (row: R) => string | number; num?: boolean; wrap?: boolean };
 </script>
 
 <script lang="ts" generics="T">
@@ -21,7 +22,7 @@
 			<tbody>
 				{#each shown as row, r (r)}
 					<tr>
-						{#each columns as c, i (i)}<td class:num={c.num}>{c.value(row)}</td>{/each}
+						{#each columns as c, i (i)}<td class:num={c.num} class:wrap={c.wrap}>{c.value(row)}</td>{/each}
 					</tr>
 				{/each}
 			</tbody>
@@ -33,6 +34,7 @@
 
 <style>
 	.tbl {
+		/* Scrolls sideways only as a last resort on very narrow screens, instead of cutting columns off. */
 		overflow: auto;
 		max-height: 520px;
 		background: var(--surface);
@@ -52,18 +54,53 @@
 		border-bottom: 1px solid var(--line);
 		white-space: nowrap;
 	}
-	th {
+	/* Headers and name columns wrap between words only, never mid-word. */
+	th,
+	td.wrap {
 		white-space: normal;
-		min-width: 64px;
+		overflow-wrap: normal;
+		word-break: normal;
+		hyphens: none;
+	}
+	td.wrap {
+		min-width: 9em;
+	}
+	th {
 		vertical-align: bottom;
 		position: sticky;
 		top: 0;
+		z-index: 2;
 		background: var(--surface);
 		font-weight: 600;
 		color: var(--ink2);
 	}
 	.num {
 		text-align: right;
+	}
+	/* First column stays on the left when the table scrolls sideways (phones). */
+	th:first-child,
+	td:first-child {
+		position: sticky;
+		left: 0;
+		z-index: 1;
+		background: var(--surface);
+		box-shadow: inset -1px 0 0 var(--line);
+	}
+	th:first-child {
+		z-index: 3;
+	}
+	td.wrap:first-child {
+		min-width: 0;
+		max-width: 40vw;
+	}
+	@media (max-width: 640px) {
+		table {
+			font-size: 13px;
+		}
+		th,
+		td {
+			padding: 6px 6px;
+		}
 	}
 	.muted {
 		color: var(--ink2);

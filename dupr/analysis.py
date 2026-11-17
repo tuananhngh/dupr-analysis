@@ -13,6 +13,7 @@ Both models are fitted per player and per format (doubles / singles), with a def
 there are too few matches. "Above expectation" in the report means doing better than these models
 predict from the ratings.
 """
+
 from __future__ import annotations
 
 import math
@@ -20,6 +21,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
+
+from . import tournaments
 
 # ------------------------------------------------------------ model 1: chance of winning a match
 # Elo-type logistic curve: P(win) = 1 / (1 + 10^(-gap / scale)). DUPR doesn't publish its model;
@@ -31,14 +34,19 @@ EXPECTATION_SCALE = 0.5
 # Below 30 matches the fitted scale is too noisy: on random 30-match samples of a 150-match history
 # it ranged from 0.47 to 1.15 (10th–90th percentile), around a full-data value of 0.73.
 SCALE_MIN_MATCHES = 30
-SCALE_BOUNDS = (0.3, 1.5)             # safety limits: 0.3 = near-deterministic, 1.5 = near coin flip
+SCALE_BOUNDS = (
+    0.3,
+    1.5,
+)  # safety limits: 0.3 = near-deterministic, 1.5 = near coin flip
 # A team is the favourite when the win model gives it 60%+, the underdog at 40% or less (a gap of
 # about ±0.09 with scale 0.5, ±0.13 with scale 0.73), so it adapts to the player's fitted scale.
 FAVOURITE_P = 0.6
 _SCALE_GRID = np.round(np.arange(SCALE_BOUNDS[0], SCALE_BOUNDS[1] + 1e-9, 0.01), 2)
 
 
-def expected_win_prob(diff: pd.Series | float, scale: float = EXPECTATION_SCALE) -> pd.Series | float:
+def expected_win_prob(
+    diff: pd.Series | float, scale: float = EXPECTATION_SCALE
+) -> pd.Series | float:
     """Chance that a team wins the match, from its rating gap (team mean minus opponents' mean).
 
     Example with scale 0.5: gap 0.10 -> 61%, 0.25 -> 76%, 0.50 -> 91%; a negative gap mirrors these.
@@ -64,7 +72,9 @@ def fit_expectation_scale(df: pd.DataFrame) -> tuple[float, bool]:
     gap. Falls back to EXPECTATION_SCALE when there are fewer than SCALE_MIN_MATCHES of them, or
     when every match was won (or every one lost), since then the likelihood has no maximum.
     """
-    d = df.dropna(subset=["rating_diff"])         # matches with ratings for all players on court
+    d = df.dropna(
+        subset=["rating_diff"]
+    )  # matches with ratings for all players on court
     won = d["won"].astype(float)
     if len(d) < SCALE_MIN_MATCHES or won.nunique() < 2:
         return EXPECTATION_SCALE, False
@@ -89,7 +99,7 @@ def fit_expectation_scale(df: pd.DataFrame) -> tuple[float, bool]:
 def point_share_from_rally_share(p, side_out):
     """Expected share of points from a share of rallies (side_out: bool per match)."""
     p = np.asarray(p, dtype=float)
-    return np.where(side_out, p ** 2 / (p ** 2 + (1 - p) ** 2), p)
+    return np.where(side_out, p**2 / (p**2 + (1 - p) ** 2), p)
 
 
 def rally_share_from_point_share(s, side_out):
@@ -117,7 +127,11 @@ def expected_point_share(df: pd.DataFrame) -> pd.Series:
     back into a point share with each match's scoring. Falls back to a default slope.
     """
     # Untagged matches count as side-out: DUPR tags rally matches explicitly (see parse.py).
-    side_out = (df["scoring"] != "RALLY").to_numpy() if "scoring" in df else np.ones(len(df), bool)
+    side_out = (
+        (df["scoring"] != "RALLY").to_numpy()
+        if "scoring" in df
+        else np.ones(len(df), bool)
+    )
     # 1. Measure: each match's rally share, from its score.
     rally = rally_share_from_point_share(df["point_share"], side_out)
     ok = (df["rating_diff"].notna() & df["point_share"].notna()).to_numpy()
@@ -128,8 +142,8 @@ def expected_point_share(df: pd.DataFrame) -> pd.Series:
     #    Needs 15+ matches and enough spread in the gaps (Σx² > 0.05; below it the standard error is
     #    about as large as the slope). Bounds [0.05, 0.4] guard against nonsense estimates.
     slope = DEFAULT_RALLIES_PER_RATING
-    if ok.sum() >= 15 and (x ** 2).sum() > 0.05:
-        slope = float(np.clip((x * y).sum() / (x ** 2).sum(), 0.05, 0.4))
+    if ok.sum() >= 15 and (x**2).sum() > 0.05:
+        slope = float(np.clip((x * y).sum() / (x**2).sum(), 0.05, 0.4))
     # 3. Predict: rally share from the gap, kept within [5%, 95%] for large gaps (a line would leave
     #    [0, 1]), then back to a point share with each match's own scoring.
     p = (0.5 + slope * df["rating_diff"]).clip(0.05, 0.95)
@@ -140,23 +154,31 @@ def expected_point_share(df: pd.DataFrame) -> pd.Series:
 class Analysis:
     fmt: str
     matches: pd.DataFrame
-    rating: pd.DataFrame                       # date, rating
+    rating: pd.DataFrame  # date, rating
     summary: dict = field(default_factory=dict)
     periods: pd.DataFrame | None = None
     partners: pd.DataFrame | None = None
     opponents: pd.DataFrame | None = None
     by_source: pd.DataFrame | None = None
     by_rest: pd.DataFrame | None = None
+    tournaments: pd.DataFrame | None = None  # one row per tournament, most recent first
+    by_context: pd.DataFrame | None = None  # tournament vs other matches
     by_weekday: pd.DataFrame | None = None
     close_games: dict = field(default_factory=dict)
     best: pd.DataFrame | None = None
     worst: pd.DataFrame | None = None
-    insights: list[dict] = field(default_factory=list)     # key findings: {"id": ..., numbers}
-    partner_effect: dict = field(default_factory=dict)    # "does a weaker partner drag me down?"
-    opponent_effect: dict = field(default_factory=dict)   # "do stronger opponents help my rating?"
-    tracker: pd.DataFrame | None = None                   # recent matches vs the ones before
-    tips: list[dict] = field(default_factory=list)        # "how to improve" findings
-    tip_level: dict = field(default_factory=dict)         # rating band used for the tips
+    insights: list[dict] = field(
+        default_factory=list
+    )  # key findings: {"id": ..., numbers}
+    partner_effect: dict = field(
+        default_factory=dict
+    )  # "does a weaker partner drag me down?"
+    opponent_effect: dict = field(
+        default_factory=dict
+    )  # "do stronger opponents help my rating?"
+    tracker: pd.DataFrame | None = None  # recent matches vs the ones before
+    tips: list[dict] = field(default_factory=list)  # "how to improve" findings
+    tip_level: dict = field(default_factory=dict)  # rating band used for the tips
 
 
 # ------------------------------------------------------------ how to improve
@@ -222,9 +244,13 @@ def improvement_tips(a: "Analysis") -> list[dict]:
     if len(g1) >= 10:
         p1, p2 = np.mean(g1) * 100, np.mean(g2) * 100
         if p1 <= p2 - 8:
-            tips.append(_tip("work", "slow_starts", game1_pct=p1, game2_pct=p2, matches=len(g1)))
+            tips.append(
+                _tip("work", "slow_starts", game1_pct=p1, game2_pct=p2, matches=len(g1))
+            )
         elif p1 >= p2 + 8:
-            tips.append(_tip("work", "fading", game1_pct=p1, game2_pct=p2, matches=len(g1)))
+            tips.append(
+                _tip("work", "fading", game1_pct=p1, game2_pct=p2, matches=len(g1))
+            )
 
     # 2. After losing / winning the first game
     multi = [ms for ms in df["game_margins"] if len(ms) >= 2]
@@ -254,15 +280,23 @@ def improvement_tips(a: "Analysis") -> list[dict]:
     if len(lost) >= 8:
         heavy = np.mean([m <= -7 for m in lost]) * 100
         if heavy >= t["heavy_loss_pct"]:
-            tips.append(_tip("work", "heavy_losses", pct=heavy, threshold=t["heavy_loss_pct"]))
+            tips.append(
+                _tip("work", "heavy_losses", pct=heavy, threshold=t["heavy_loss_pct"])
+            )
 
     # 5. Losses as the favourite (FAVOURITE_P).
     exp = df.dropna(subset=["exp_win"])
     upsets = exp[(~exp["won"]) & (exp["exp_win"] >= FAVOURITE_P)]
     if len(exp) >= 15 and len(upsets) >= 3:
         cost = upsets["rating_impact"].sum(min_count=1)
-        tips.append(_tip("work", "favourite_losses", matches=len(upsets),
-                         cost=abs(cost) if not math.isnan(cost) and cost < 0 else None))
+        tips.append(
+            _tip(
+                "work",
+                "favourite_losses",
+                matches=len(upsets),
+                cost=abs(cost) if not math.isnan(cost) and cost < 0 else None,
+            )
+        )
 
     # 6. Against stronger opponents (rated 0.1+ above you)
     st = df[df["opp_gap"] > 0.1]
@@ -287,8 +321,16 @@ def improvement_tips(a: "Analysis") -> list[dict]:
         p = a.partners[a.partners["matches"] >= 5].dropna(subset=["avg_impact"])
         if len(p) >= 2:
             best = p["avg_impact"].idxmax()
-            tips.append(_tip("info", "best_partner", partner=best, avg_impact=p.loc[best, "avg_impact"],
-                             matches=int(p.loc[best, "matches"]), win_pct=p.loc[best, "win_pct"]))
+            tips.append(
+                _tip(
+                    "info",
+                    "best_partner",
+                    partner=best,
+                    avg_impact=p.loc[best, "avg_impact"],
+                    matches=int(p.loc[best, "matches"]),
+                    win_pct=p.loc[best, "win_pct"],
+                )
+            )
 
     order = {"work": 0, "strength": 1, "info": 2}
     return sorted(tips, key=lambda x: order[x["kind"]])
@@ -329,15 +371,25 @@ def gap_effect(df: pd.DataFrame, gap_col: str) -> dict:
         x, y = d[gap_col].to_numpy(float), d[col].to_numpy(float)
         slope, intercept = np.polyfit(x, y, 1)
         resid = y - (slope * x + intercept)
-        se = math.sqrt((resid ** 2).sum() / (len(x) - 2) / ((x - x.mean()) ** 2).sum())
-    return {"table": table, "col": col, "data": d, "gap_col": gap_col,
-            "slope_per_0_1": slope * 0.1, "slope_se_per_0_1": se * 0.1}
+        se = math.sqrt((resid**2).sum() / (len(x) - 2) / ((x - x.mean()) ** 2).sum())
+    return {
+        "table": table,
+        "col": col,
+        "data": d,
+        "gap_col": gap_col,
+        "slope_per_0_1": slope * 0.1,
+        "slope_se_per_0_1": se * 0.1,
+    }
 
 
 def _compare(a_: pd.Series, b_: pd.Series) -> tuple[float, float, float, bool]:
     """Mean of a, mean of b, difference, and whether the difference is clear (> 2 standard errors)."""
     ma, mb = a_.mean(), b_.mean()
-    se = math.sqrt(a_.var(ddof=1) / len(a_) + b_.var(ddof=1) / len(b_)) if len(a_) > 1 and len(b_) > 1 else math.inf
+    se = (
+        math.sqrt(a_.var(ddof=1) / len(a_) + b_.var(ddof=1) / len(b_))
+        if len(a_) > 1 and len(b_) > 1
+        else math.inf
+    )
     diff = ma - mb
     return ma, mb, diff, abs(diff) > 2 * se
 
@@ -355,14 +407,24 @@ def partner_verdict(eff: dict) -> dict:
     if len(weak) < 5 or len(rest) < 5:
         return {"status": "few", "n_weak": len(weak), "n_rest": len(rest)}
     mw, mr, diff, clear = _compare(weak[col], rest[col])
-    return {"status": "ok", "measure": col, "n_weak": len(weak), "n_rest": len(rest),
-            "mean_weak": mw, "mean_rest": mr, "diff": diff, "clear": clear,
-            "win_pct_weak": weak["won"].mean() * 100, "exp_win_pct_weak": weak["exp_win"].mean() * 100}
+    return {
+        "status": "ok",
+        "measure": col,
+        "n_weak": len(weak),
+        "n_rest": len(rest),
+        "mean_weak": mw,
+        "mean_rest": mr,
+        "diff": diff,
+        "clear": clear,
+        "win_pct_weak": weak["won"].mean() * 100,
+        "exp_win_pct_weak": weak["exp_win"].mean() * 100,
+    }
 
 
 def opponent_verdict(eff: dict) -> dict:
     """Do stronger opponents help the player's rating? Same structure as partner_verdict, plus the
-    average rating change in losses to stronger opponents (loss_mean) and in all losses."""
+    average rating change in losses to stronger opponents (loss_mean) and in all losses.
+    """
     if not eff:
         return {"status": "no_data"}
     d, col = eff["data"], eff["col"]
@@ -370,9 +432,18 @@ def opponent_verdict(eff: dict) -> dict:
     if len(strong) < 5 or len(rest) < 5:
         return {"status": "few", "n_strong": len(strong), "n_rest": len(rest)}
     ms, mr, diff, clear = _compare(strong[col], rest[col])
-    out = {"status": "ok", "measure": col, "n_strong": len(strong), "n_rest": len(rest),
-           "mean_strong": ms, "mean_rest": mr, "diff": diff, "clear": clear,
-           "win_pct_strong": strong["won"].mean() * 100, "exp_win_pct_strong": strong["exp_win"].mean() * 100}
+    out = {
+        "status": "ok",
+        "measure": col,
+        "n_strong": len(strong),
+        "n_rest": len(rest),
+        "mean_strong": ms,
+        "mean_rest": mr,
+        "diff": diff,
+        "clear": clear,
+        "win_pct_strong": strong["won"].mean() * 100,
+        "exp_win_pct_strong": strong["exp_win"].mean() * 100,
+    }
     lost = strong[~strong["won"]]
     if col == "rating_impact" and len(lost) >= 3:
         out["loss_mean"] = lost[col].mean()
@@ -386,7 +457,7 @@ def tracker_table(df: pd.DataFrame) -> pd.DataFrame | None:
     if n < 10:
         return None
     k = min(20, n // 2)
-    recent, before = df.iloc[-k:], df.iloc[-2 * k:-k]
+    recent, before = df.iloc[-k:], df.iloc[-2 * k : -k]
 
     def stats(g: pd.DataFrame) -> dict:
         cp, cw = g["close_played"].sum(), g["close_won"].sum()
@@ -394,13 +465,18 @@ def tracker_table(df: pd.DataFrame) -> pd.DataFrame | None:
             "Point win %": g["point_share"].mean() * 100,
             "Win %": g["won"].mean() * 100,
             "Expected win %": g["exp_win"].mean() * 100,
-            "Wins above expectation": (g["won"].astype(float) - g["exp_win"]).sum(min_count=1),
+            "Wins above expectation": (g["won"].astype(float) - g["exp_win"]).sum(
+                min_count=1
+            ),
             "Avg rating change per match": g["rating_impact"].mean(),
             "Close games won % (≤2 pts)": cw / cp * 100 if cp else math.nan,
             "Avg opponent rating vs yours": g["opp_gap"].mean(),
             "Avg partner rating vs yours": g["partner_gap"].mean(),
         }
-    t = pd.DataFrame({f"Previous {k} matches": stats(before), f"Last {k} matches": stats(recent)})
+
+    t = pd.DataFrame(
+        {f"Previous {k} matches": stats(before), f"Last {k} matches": stats(recent)}
+    )
     t["Change"] = t.iloc[:, 1] - t.iloc[:, 0]
     return t
 
@@ -409,11 +485,17 @@ def tracker_table(df: pd.DataFrame) -> pd.DataFrame | None:
 def rating_series(df: pd.DataFrame, history: pd.DataFrame | None) -> pd.DataFrame:
     if history is not None and len(history) >= 2:
         return history[["date", "rating"]].copy()
-    pts = df[["date", "rating_after"]].rename(columns={"rating_after": "rating"}).dropna()
+    pts = (
+        df[["date", "rating_after"]].rename(columns={"rating_after": "rating"}).dropna()
+    )
     first = df.dropna(subset=["rating_before"]).head(1)
     if len(first):
-        start = pd.DataFrame({"date": [first["date"].iloc[0] - pd.Timedelta(hours=1)],
-                              "rating": [first["rating_before"].iloc[0]]})
+        start = pd.DataFrame(
+            {
+                "date": [first["date"].iloc[0] - pd.Timedelta(hours=1)],
+                "rating": [first["rating_before"].iloc[0]],
+            }
+        )
         pts = pd.concat([start, pts], ignore_index=True)
     return pts.reset_index(drop=True)
 
@@ -428,26 +510,32 @@ def streaks(won: pd.Series) -> dict:
             best_w = max(best_w, cur)
         else:
             best_l = max(best_l, cur)
-    return {"longest_win_streak": best_w, "longest_loss_streak": best_l,
-            "current_streak": f"{cur}{'W' if last else 'L'}" if last is not None else "-",
-            "current_streak_n": cur, "current_streak_won": last}
+    return {
+        "longest_win_streak": best_w,
+        "longest_loss_streak": best_l,
+        "current_streak": f"{cur}{'W' if last else 'L'}" if last is not None else "-",
+        "current_streak_n": cur,
+        "current_streak_won": last,
+    }
 
 
 def _agg(g: pd.DataFrame) -> pd.Series:
-    return pd.Series({
-        "matches": len(g),
-        "wins": int(g["won"].sum()),
-        "win_pct": g["won"].mean() * 100,
-        "point_share": g["point_share"].mean() * 100,
-        "avg_point_diff": g["point_diff"].mean(),
-        "avg_opp_rating": g["opp_rating_avg"].mean(),
-        "avg_rating_diff": g["rating_diff"].mean(),
-        "rating_gained": g["rating_impact"].sum(min_count=1),
-        "expected_wins": g["exp_win"].sum(min_count=1),
-        "exp_win_pct": g["exp_win"].mean() * 100,
-        "avg_impact": g["rating_impact"].mean(),
-        "partner_gap": g["partner_gap"].mean() if "partner_gap" in g else math.nan,
-    })
+    return pd.Series(
+        {
+            "matches": len(g),
+            "wins": int(g["won"].sum()),
+            "win_pct": g["won"].mean() * 100,
+            "point_share": g["point_share"].mean() * 100,
+            "avg_point_diff": g["point_diff"].mean(),
+            "avg_opp_rating": g["opp_rating_avg"].mean(),
+            "avg_rating_diff": g["rating_diff"].mean(),
+            "rating_gained": g["rating_impact"].sum(min_count=1),
+            "expected_wins": g["exp_win"].sum(min_count=1),
+            "exp_win_pct": g["exp_win"].mean() * 100,
+            "avg_impact": g["rating_impact"].mean(),
+            "partner_gap": g["partner_gap"].mean() if "partner_gap" in g else math.nan,
+        }
+    )
 
 
 def _period_freq(span_days: float, n: int) -> tuple[str, str]:
@@ -460,9 +548,15 @@ def _period_freq(span_days: float, n: int) -> tuple[str, str]:
 
 
 # ----------------------------------------------------------------- main
-def analyze(df: pd.DataFrame, fmt: str, history: pd.DataFrame | None = None) -> Analysis:
+def analyze(
+    df: pd.DataFrame, fmt: str, history: pd.DataFrame | None = None
+) -> Analysis:
     df = df[df["format"] == fmt].copy().reset_index(drop=True)
-    a = Analysis(fmt=fmt, matches=df, rating=rating_series(df, history) if len(df) else pd.DataFrame())
+    a = Analysis(
+        fmt=fmt,
+        matches=df,
+        rating=rating_series(df, history) if len(df) else pd.DataFrame(),
+    )
     if df.empty:
         return a
 
@@ -477,7 +571,11 @@ def analyze(df: pd.DataFrame, fmt: str, history: pd.DataFrame | None = None) -> 
     df["exp_point_share"] = expected_point_share(df)
     # Measured rally share of each match (the "Rally win %" tile): strength with the side-out
     # stretch, and the serve effect, removed. Equal to the point share in rally scoring.
-    side_out = (df["scoring"] != "RALLY").to_numpy() if "scoring" in df else np.ones(len(df), bool)
+    side_out = (
+        (df["scoring"] != "RALLY").to_numpy()
+        if "scoring" in df
+        else np.ones(len(df), bool)
+    )
     df["rally_share"] = rally_share_from_point_share(df["point_share"], side_out)
     df["match_no"] = np.arange(1, len(df) + 1)
     w = min(10, max(3, len(df) // 5))
@@ -485,8 +583,12 @@ def analyze(df: pd.DataFrame, fmt: str, history: pd.DataFrame | None = None) -> 
     df["rolling_point_share"] = df["point_share"].rolling(w, min_periods=w).mean() * 100
     df["perf_vs_exp"] = (df["won"].astype(float) - df["exp_win"]).fillna(0).cumsum()
     df["rest_days"] = df["date"].diff().dt.days
-    df["partner_gap"] = df["partner_rating"] - df["rating_before"]   # < 0: partner weaker than you
-    df["opp_gap"] = df["opp_rating_avg"] - df["rating_before"]       # > 0: opponents stronger than you
+    df["partner_gap"] = (
+        df["partner_rating"] - df["rating_before"]
+    )  # < 0: partner weaker than you
+    df["opp_gap"] = (
+        df["opp_rating_avg"] - df["rating_before"]
+    )  # > 0: opponents stronger than you
     df["vs_exp"] = df["won"].astype(float) - df["exp_win"]
     df["close_played"] = [sum(abs(m) <= 2 for m in ms) for ms in df["game_margins"]]
     df["close_won"] = [sum(0 < m <= 2 for m in ms) for ms in df["game_margins"]]
@@ -497,31 +599,49 @@ def analyze(df: pd.DataFrame, fmt: str, history: pd.DataFrame | None = None) -> 
     r = a.rating
     span_days = (df["date"].iloc[-1] - df["date"].iloc[0]).days
     s = a.summary
-    s.update({
-        "matches": len(df), "wins": int(df["won"].sum()), "losses": int((~df["won"]).sum()),
-        "win_pct": df["won"].mean() * 100,
-        "first_match": df["date"].iloc[0], "last_match": df["date"].iloc[-1], "span_days": span_days,
-        "games_won": int(df["games_won"].sum()), "games_lost": int(df["games_lost"].sum()),
-        "point_share": df["point_share"].mean() * 100,
-        "avg_opp_rating": df["opp_rating_avg"].mean(),
-        "avg_partner_rating": df["partner_rating"].mean(),
-        "matches_per_month": len(df) / max(span_days / 30.44, 1),
-        **streaks(df["won"]),
-    })
+    s.update(
+        {
+            "matches": len(df),
+            "wins": int(df["won"].sum()),
+            "losses": int((~df["won"]).sum()),
+            "win_pct": df["won"].mean() * 100,
+            "first_match": df["date"].iloc[0],
+            "last_match": df["date"].iloc[-1],
+            "span_days": span_days,
+            "games_won": int(df["games_won"].sum()),
+            "games_lost": int(df["games_lost"].sum()),
+            "point_share": df["point_share"].mean() * 100,
+            "avg_opp_rating": df["opp_rating_avg"].mean(),
+            "avg_partner_rating": df["partner_rating"].mean(),
+            "matches_per_month": len(df) / max(span_days / 30.44, 1),
+            **streaks(df["won"]),
+        }
+    )
     if len(r):
-        s.update({
-            "rating_start": r["rating"].iloc[0], "rating_now": r["rating"].iloc[-1],
-            "rating_peak": r["rating"].max(), "rating_peak_date": r.loc[r["rating"].idxmax(), "date"],
-            "rating_low": r["rating"].min(),
-        })
+        s.update(
+            {
+                "rating_start": r["rating"].iloc[0],
+                "rating_now": r["rating"].iloc[-1],
+                "rating_peak": r["rating"].max(),
+                "rating_peak_date": r.loc[r["rating"].idxmax(), "date"],
+                "rating_low": r["rating"].min(),
+            }
+        )
         s["rating_change"] = s["rating_now"] - s["rating_start"]
         if len(r) >= 3 and span_days > 14:
             x = (r["date"] - r["date"].iloc[0]).dt.days.to_numpy(float)
-            s["trend_per_month"] = np.polyfit(x, r["rating"].to_numpy(float), 1)[0] * 30.44
+            s["trend_per_month"] = (
+                np.polyfit(x, r["rating"].to_numpy(float), 1)[0] * 30.44
+            )
             recent = r[r["date"] >= r["date"].iloc[-1] - pd.Timedelta(days=90)]
-            if len(recent) >= 3 and (recent["date"].iloc[-1] - recent["date"].iloc[0]).days > 7:
+            if (
+                len(recent) >= 3
+                and (recent["date"].iloc[-1] - recent["date"].iloc[0]).days > 7
+            ):
                 xr = (recent["date"] - recent["date"].iloc[0]).dt.days.to_numpy(float)
-                s["trend_last_90d_per_month"] = np.polyfit(xr, recent["rating"].to_numpy(float), 1)[0] * 30.44
+                s["trend_last_90d_per_month"] = (
+                    np.polyfit(xr, recent["rating"].to_numpy(float), 1)[0] * 30.44
+                )
             before = r[r["date"] <= r["date"].iloc[-1] - pd.Timedelta(days=90)]
             if len(before):
                 s["change_last_90d"] = s["rating_now"] - before["rating"].iloc[-1]
@@ -529,43 +649,89 @@ def analyze(df: pd.DataFrame, fmt: str, history: pd.DataFrame | None = None) -> 
     if df["exp_win"].notna().any():
         s["exp_win_pct"] = df["exp_win"].mean() * 100
         s["expected_wins"] = df["exp_win"].sum()
-        s["wins_above_expected"] = (df["won"].astype(float) - df["exp_win"]).sum(min_count=1)
+        # Expected wins only cover matches where every player had a rating, so compare with the
+        # wins in those same matches (not all wins).
+        rated = df["exp_win"].notna()
+        s["rated_matches"] = int(rated.sum())
+        s["rated_wins"] = int(df.loc[rated, "won"].sum())
+        s["wins_above_expected"] = (df["won"].astype(float) - df["exp_win"]).sum(
+            min_count=1
+        )
 
     # -------- periods
     freq, period = _period_freq(span_days, len(df))
     s["period"] = period
-    per = df.groupby(pd.Grouper(key="date", freq=freq)).apply(_agg, include_groups=False)
+    per = df.groupby(pd.Grouper(key="date", freq=freq)).apply(
+        _agg, include_groups=False
+    )
     per = per[per["matches"] > 0]
     if len(r):
         end = r.set_index("date")["rating"].resample(freq).last().ffill()
         per["rating_end"] = end.reindex(per.index)
-    per.index.name = "period_end"           # last day of the week / month / quarter
+    per.index.name = "period_end"  # last day of the week / month / quarter
     a.periods = per
 
     # -------- partners / opponents
     if fmt == "DOUBLES" and df["partner"].notna().any():
         p = df.dropna(subset=["partner"]).groupby("partner")
-        a.partners = p.apply(_agg, include_groups=False).assign(
-            partner_rating=p["partner_rating"].mean(), last_played=p["date"].max()
-        ).sort_values("matches", ascending=False)
+        a.partners = (
+            p.apply(_agg, include_groups=False)
+            .assign(
+                partner_rating=p["partner_rating"].mean(), last_played=p["date"].max()
+            )
+            .sort_values("matches", ascending=False)
+        )
     opp_rows = []
     for m in df.itertuples():
         for nm in str(m.opponents).split(" & "):
-            opp_rows.append({"opponent": nm, "won": m.won, "point_share": m.point_share})
+            opp_rows.append(
+                {"opponent": nm, "won": m.won, "point_share": m.point_share}
+            )
     if opp_rows:
-        od = pd.DataFrame(opp_rows).groupby("opponent").agg(
-            matches=("won", "size"), wins=("won", "sum"), win_pct=("won", lambda x: x.mean() * 100),
-            point_share=("point_share", lambda x: x.mean() * 100))
+        od = (
+            pd.DataFrame(opp_rows)
+            .groupby("opponent")
+            .agg(
+                matches=("won", "size"),
+                wins=("won", "sum"),
+                win_pct=("won", lambda x: x.mean() * 100),
+                point_share=("point_share", lambda x: x.mean() * 100),
+            )
+        )
         a.opponents = od.sort_values(["matches", "win_pct"], ascending=[False, True])
 
     # -------- context
-    a.by_source = df.groupby("source").apply(_agg, include_groups=False).sort_values("matches", ascending=False)
+    a.by_source = (
+        df.groupby("source")
+        .apply(_agg, include_groups=False)
+        .sort_values("matches", ascending=False)
+    )
     rest = pd.cut(df["rest_days"], [-1, 0, 3, 7, 14, np.inf], labels=REST_KEYS)
-    a.by_rest = df.assign(rest=rest).dropna(subset=["rest"]).groupby("rest", observed=True).apply(
-        _agg, include_groups=False)
-    a.by_weekday = df.assign(weekday=df["date"].dt.day_name()).groupby("weekday").apply(
-        _agg, include_groups=False).reindex(
-        ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]).dropna(how="all")
+    a.by_rest = (
+        df.assign(rest=rest)
+        .dropna(subset=["rest"])
+        .groupby("rest", observed=True)
+        .apply(_agg, include_groups=False)
+    )
+    a.tournaments = tournaments.tournaments_table(df, _agg)
+    a.by_context = tournaments.by_context(df, _agg)
+    a.by_weekday = (
+        df.assign(weekday=df["date"].dt.day_name())
+        .groupby("weekday")
+        .apply(_agg, include_groups=False)
+        .reindex(
+            [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+            ]
+        )
+        .dropna(how="all")
+    )
 
     # -------- close games & deciders
     margins = [m for ms in df["game_margins"] for m in ms]
@@ -573,18 +739,43 @@ def analyze(df: pd.DataFrame, fmt: str, history: pd.DataFrame | None = None) -> 
     deciders = [ms[2] for ms in df["game_margins"] if len(ms) == 3]
     a.close_games = {
         "games": len(margins),
-        "game_win_pct": np.mean([m > 0 for m in margins]) * 100 if margins else math.nan,
+        "game_win_pct": (
+            np.mean([m > 0 for m in margins]) * 100 if margins else math.nan
+        ),
         "close_games": len(close),
         "close_win_pct": np.mean([m > 0 for m in close]) * 100 if close else math.nan,
         "blowouts": sum(abs(m) >= 7 for m in margins),
-        "blowout_win_pct": np.mean([m > 0 for m in margins if abs(m) >= 7]) * 100 if any(abs(m) >= 7 for m in margins) else math.nan,
+        "blowout_win_pct": (
+            np.mean([m > 0 for m in margins if abs(m) >= 7]) * 100
+            if any(abs(m) >= 7 for m in margins)
+            else math.nan
+        ),
         "deciders": len(deciders),
-        "decider_win_pct": np.mean([m > 0 for m in deciders]) * 100 if deciders else math.nan,
-        "avg_margin_win": np.mean([m for m in margins if m > 0]) if any(m > 0 for m in margins) else math.nan,
-        "avg_margin_loss": np.mean([m for m in margins if m < 0]) if any(m < 0 for m in margins) else math.nan,
+        "decider_win_pct": (
+            np.mean([m > 0 for m in deciders]) * 100 if deciders else math.nan
+        ),
+        "avg_margin_win": (
+            np.mean([m for m in margins if m > 0])
+            if any(m > 0 for m in margins)
+            else math.nan
+        ),
+        "avg_margin_loss": (
+            np.mean([m for m in margins if m < 0])
+            if any(m < 0 for m in margins)
+            else math.nan
+        ),
     }
 
-    cols = ["date", "won", "game_scores", "partner", "opponents", "rating_diff", "rating_impact"]
+    cols = [
+        "date",
+        "won",
+        "game_scores",
+        "partner",
+        "opponents",
+        "opp_rating_avg",
+        "rating_diff",
+        "rating_impact",
+    ]
     cols = [c for c in cols if c in df]
     if df["rating_impact"].notna().any():
         a.best = df.nlargest(5, "rating_impact")[cols]
@@ -609,48 +800,39 @@ def analyze(df: pd.DataFrame, fmt: str, history: pd.DataFrame | None = None) -> 
 REST_KEYS = ["same_day", "1_3", "4_7", "8_14", "15_plus"]
 
 
-def _rest_finding(by_rest: pd.DataFrame) -> dict | None:
-    br = by_rest[by_rest["matches"] >= 5]
-    if len(br) < 2:
-        return None
-    best, worst = br["win_pct"].idxmax(), br["win_pct"].idxmin()
-    b, w = br.loc[best], br.loc[worst]
-    if b["win_pct"] - w["win_pct"] < 10:
-        meaning = "small"                     # rest time doesn't seem to matter
-    elif worst == REST_KEYS[0]:
-        meaning = "tiring"                    # same-day matches are the worst: energy
-    elif worst == REST_KEYS[-1]:
-        meaning = "rhythm"                    # long breaks are the worst: lost rhythm
-    elif REST_KEYS.index(best) < REST_KEYS.index(worst):
-        meaning = "shorter"                   # shorter gaps suit you better
-    else:
-        meaning = "longer"                    # more rest suits you better
-    return {"id": "rest", "best": best, "best_pct": b["win_pct"], "best_n": int(b["matches"]),
-            "worst": worst, "worst_pct": w["win_pct"], "worst_n": int(w["matches"]), "meaning": meaning,
-            "few": bool(min(b["matches"], w["matches"]) < 15)}
-
-
 def _halves_finding(early: pd.DataFrame, late: pd.DataFrame) -> dict:
     """Earlier matches vs recent matches, and what the change means given the opponents' level."""
     w0, w1 = early["won"].mean() * 100, late["won"].mean() * 100
-    out = {"id": "halves", "n_early": len(early), "n_late": len(late),
-           "early_from": early["date"].iloc[0], "early_to": early["date"].iloc[-1],
-           "late_from": late["date"].iloc[0], "late_to": late["date"].iloc[-1],
-           "win_early": w0, "win_late": w1,
-           "points_early": early["point_share"].mean() * 100, "points_late": late["point_share"].mean() * 100}
+    out = {
+        "id": "halves",
+        "n_early": len(early),
+        "n_late": len(late),
+        "early_from": early["date"].iloc[0],
+        "early_to": early["date"].iloc[-1],
+        "late_from": late["date"].iloc[0],
+        "late_to": late["date"].iloc[-1],
+        "win_early": w0,
+        "win_late": w1,
+        "points_early": early["point_share"].mean() * 100,
+        "points_late": late["point_share"].mean() * 100,
+    }
     o0, o1 = early["opp_rating_avg"].mean(), late["opp_rating_avg"].mean()
     if math.isnan(o0) or math.isnan(o1):
         return out
     opp_change = o1 - o0
     tougher, easier = opp_change >= 0.05, opp_change <= -0.05
-    out.update(opp_early=o0, opp_late=o1, opponents="stronger" if tougher else "weaker" if easier else "same")
+    out.update(
+        opp_early=o0,
+        opp_late=o1,
+        opponents="stronger" if tougher else "weaker" if easier else "same",
+    )
     # "Wins vs what the ratings predicted" takes opponent strength into account.
     dw = w1 - w0
     dv = (late["vs_exp"].mean() - early["vs_exp"].mean()) * 100
     if tougher and dw >= 5:
-        meaning = "progress_tougher"          # more wins against tougher opponents
+        meaning = "progress_tougher"  # more wins against tougher opponents
     elif tougher and dw > -5:
-        meaning = "level_up"                  # similar results against tougher opponents
+        meaning = "level_up"  # similar results against tougher opponents
     elif tougher:
         meaning = "tougher_explains" if not dv <= -5 else "worse_than_tougher"
     elif easier and dw >= 5:
@@ -685,57 +867,133 @@ def _impact_finding(df: pd.DataFrame) -> dict | None:
 def _insights(a: Analysis) -> list[dict]:
     s, df, out = a.summary, a.matches, []
     if "rating_change" in s:
-        out.append({"id": "rating_change", "change": s["rating_change"], "start": s["rating_start"],
-                    "now": s["rating_now"], "matches": s["matches"], "peak": s["rating_peak"],
-                    "peak_date": s["rating_peak_date"]})
+        out.append(
+            {
+                "id": "rating_change",
+                "change": s["rating_change"],
+                "start": s["rating_start"],
+                "start_date": s["first_match"],
+                "now": s["rating_now"],
+                "matches": s["matches"],
+                "peak": s["rating_peak"],
+                "peak_date": s["rating_peak_date"],
+            }
+        )
     if "trend_per_month" in s:
         f = {"id": "trend", "per_month": s["trend_per_month"]}
         if "trend_last_90d_per_month" in s:
             r = s["trend_last_90d_per_month"]
-            f.update(last_90d=r, pace="faster" if r > s["trend_per_month"] + 0.01 else
-                     "slower" if r < s["trend_per_month"] - 0.01 else "steady")
+            f.update(
+                last_90d=r,
+                pace=(
+                    "faster"
+                    if r > s["trend_per_month"] + 0.01
+                    else "slower" if r < s["trend_per_month"] - 0.01 else "steady"
+                ),
+            )
         out.append(f)
     per = a.periods
     if per is not None and len(per) >= 2:
-        solid = per[per["matches"] >= max(5, per["matches"].median() / 2)]
+        min_matches = math.ceil(max(5, per["matches"].median() / 2))
+        solid = per[per["matches"] >= min_matches]
         if len(solid) >= 2:
             best, worst = solid["win_pct"].idxmax(), solid["win_pct"].idxmin()
-            out.append({"id": "best_period", "period": s["period"],
-                        "best": best, "best_pct": solid.loc[best, "win_pct"], "best_n": int(solid.loc[best, "matches"]),
-                        "worst": worst, "worst_pct": solid.loc[worst, "win_pct"],
-                        "worst_n": int(solid.loc[worst, "matches"])})
+            out.append(
+                {
+                    "id": "best_period",
+                    "period": s["period"],
+                    "best": best,
+                    "best_pct": solid.loc[best, "win_pct"],
+                    "best_n": int(solid.loc[best, "matches"]),
+                    "worst": worst,
+                    "worst_pct": solid.loc[worst, "win_pct"],
+                    "worst_n": int(solid.loc[worst, "matches"]),
+                    "min_matches": min_matches,
+                }
+            )
         half = len(df) // 2
         if half >= 5:
             out.append(_halves_finding(df.iloc[:half], df.iloc[half:]))
     if "wins_above_expected" in s and not math.isnan(s["wins_above_expected"]):
-        out.append({"id": "vs_expected", "wins": s["wins"], "expected": s["expected_wins"],
-                    "above": s["wins_above_expected"]})
+        out.append(
+            {
+                "id": "vs_expected",
+                "wins": s["rated_wins"],
+                "matches": s["rated_matches"],
+                "expected": s["expected_wins"],
+                "above": s["wins_above_expected"],
+            }
+        )
     under = df[df["exp_win"] <= 1 - FAVOURITE_P]
     if len(under) >= 3:
-        out.append({"id": "underdog", "win_pct": under["won"].mean() * 100, "matches": len(under)})
+        out.append(
+            {
+                "id": "underdog",
+                "win_pct": under["won"].mean() * 100,
+                "matches": len(under),
+                "wins": int(under["won"].sum()),
+                "exp_win_pct": under["exp_win"].mean() * 100,
+            }
+        )
     fav = df[df["exp_win"] >= FAVOURITE_P]
     if len(fav) >= 3:
-        out.append({"id": "favourite", "win_pct": fav["won"].mean() * 100, "matches": len(fav)})
+        out.append(
+            {
+                "id": "favourite",
+                "win_pct": fav["won"].mean() * 100,
+                "matches": len(fav),
+                "wins": int(fav["won"].sum()),
+                "exp_win_pct": fav["exp_win"].mean() * 100,
+            }
+        )
     c = a.close_games
     if c.get("close_games", 0) >= 5:
-        verdict = "clutch" if c["close_win_pct"] >= 55 else "weak" if c["close_win_pct"] <= 45 else "coin_flip"
-        out.append({"id": "close_games", "pct": c["close_win_pct"], "games": c["close_games"], "verdict": verdict})
+        verdict = (
+            "clutch"
+            if c["close_win_pct"] >= 55
+            else "weak" if c["close_win_pct"] <= 45 else "coin_flip"
+        )
+        out.append(
+            {
+                "id": "close_games",
+                "pct": c["close_win_pct"],
+                "games": c["close_games"],
+                "verdict": verdict,
+            }
+        )
     if c.get("deciders", 0) >= 3:
-        out.append({"id": "deciders", "pct": c["decider_win_pct"], "games": c["deciders"]})
+        out.append(
+            {"id": "deciders", "pct": c["decider_win_pct"], "games": c["deciders"]}
+        )
     if a.partners is not None:
         p = a.partners[a.partners["matches"] >= 3]
         if len(p) >= 2:
             b, w = p["win_pct"].idxmax(), p["win_pct"].idxmin()
-            out.append({"id": "partners", "best": b, "best_pct": p.loc[b, "win_pct"], "best_n": int(p.loc[b, "matches"]),
-                        "worst": w, "worst_pct": p.loc[w, "win_pct"], "worst_n": int(p.loc[w, "matches"])})
-    if a.by_rest is not None and len(a.by_rest) >= 2:
-        f = _rest_finding(a.by_rest)
-        if f:
-            out.append(f)
+            out.append(
+                {
+                    "id": "partners",
+                    "best": b,
+                    "best_pct": p.loc[b, "win_pct"],
+                    "best_n": int(p.loc[b, "matches"]),
+                    "worst": w,
+                    "worst_pct": p.loc[w, "win_pct"],
+                    "worst_n": int(p.loc[w, "matches"]),
+                }
+            )
+    # No "rest between matches" finding: same-day matches are mostly tournament / club-night
+    # sessions and 4–7 day gaps mostly separate events, so the groups compare kinds of events,
+    # not rest. The by_rest table stays in the detailed stats.
     if df["rating_impact"].notna().any():
         f = _impact_finding(df)
         if f:
             out.append(f)
-    out.append({"id": "streaks", "longest_win": s["longest_win_streak"], "longest_loss": s["longest_loss_streak"],
-                "current": s["current_streak_n"], "current_won": s["current_streak_won"]})
+    out.append(
+        {
+            "id": "streaks",
+            "longest_win": s["longest_win_streak"],
+            "longest_loss": s["longest_loss_streak"],
+            "current": s["current_streak_n"],
+            "current_won": s["current_streak_won"],
+        }
+    )
     return out

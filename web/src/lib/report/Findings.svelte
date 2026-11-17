@@ -2,8 +2,8 @@
 	// The key findings as cards: a title, the headline number and the sentence.
 	import { m } from './messages.ts';
 	import type { FindingText } from './messages.en.ts';
-	import { pct, signed } from './format.ts';
-	import type { Finding } from './types.ts';
+	import { date, num, pct, periodLabel, rating, signed, span } from './format.ts';
+	import type { Finding, Period } from './types.ts';
 
 	let { findings, fmt }: { findings: Finding[]; fmt: string } = $props();
 	const M = $derived(m());
@@ -30,7 +30,6 @@
 				return { value: pct(f.pct), tone: f.verdict === 'clutch' ? 'good' : f.verdict === 'weak' ? 'bad' : undefined };
 			case 'best_period':
 			case 'partners':
-			case 'rest':
 				return { value: pct(f.best_pct), tone: undefined };
 			case 'underdog':
 			case 'favourite':
@@ -45,12 +44,77 @@
 		return null;
 	}
 
+	// Some cards show their numbers as a small table, so the text can be just the conclusion.
+	type Head = { label: string; sub?: string };
+	type Row = { label: string; sub?: string; cells: string[] };
+	type Cmp = { head: Head[]; rows: Row[] };
+	function compare(f: Finding): Cmp | null {
+		const U = M.ui;
+		switch (f.id) {
+			case 'rating_change': {
+				const rows: Row[] = [{ label: U.cmp.start, sub: f.start_date ? date(f.start_date) : undefined, cells: [rating(f.start)] }];
+				if (f.peak != null && f.peak !== f.start)
+					rows.push({ label: U.cmp.peak, sub: date(f.peak_date), cells: [rating(f.peak)] });
+				rows.push({ label: U.cmp.now, cells: [rating(f.now)] });
+				return { head: [{ label: U.cmp.rating }], rows };
+			}
+			case 'trend':
+				if (f.last_90d == null) return null;
+				return {
+					head: [{ label: U.cmp.perMonth }],
+					rows: [
+						{ label: U.cmp.sinceStart, cells: [signed(f.per_month)] },
+						{ label: U.cmp.last90, cells: [signed(f.last_90d)] }
+					]
+				};
+			case 'best_period': {
+				const p = f.period as Period;
+				return {
+					head: [{ label: U.cmp.winPct }, { label: U.cmp.matches }],
+					rows: [
+						{ label: U.cmp.best(p), sub: periodLabel(f.best, p), cells: [pct(f.best_pct), String(f.best_n)] },
+						{ label: U.cmp.worst(p), sub: periodLabel(f.worst, p), cells: [pct(f.worst_pct), String(f.worst_n)] }
+					]
+				};
+			}
+			case 'halves': {
+				const rows: Row[] = [
+					{ label: U.halves.matches, cells: [String(f.n_early), String(f.n_late)] },
+					{ label: U.halves.won, cells: [pct(f.win_early), pct(f.win_late)] },
+					{ label: U.halves.points, cells: [pct(f.points_early), pct(f.points_late)] }
+				];
+				if (f.opp_early != null && f.opp_late != null)
+					rows.push({ label: U.halves.opp, cells: [num(f.opp_early, 2), num(f.opp_late, 2)] });
+				return {
+					head: [
+						{ label: U.halves.then, sub: span(f.early_from, f.early_to) },
+						{ label: U.halves.now, sub: span(f.late_from, f.late_to) }
+					],
+					rows
+				};
+			}
+			case 'impact': {
+				const rows: Row[] = [
+					{ label: U.cmp.win, cells: [signed(f.win)] },
+					{ label: U.cmp.loss, cells: [signed(f.loss)] }
+				];
+				if (f.close_loss != null && f.heavy_loss != null)
+					rows.push(
+						{ label: U.cmp.closeLoss, sub: U.cmp.closeLossSub, cells: [signed(f.close_loss)] },
+						{ label: U.cmp.heavyLoss, sub: U.cmp.heavyLossSub, cells: [signed(f.heavy_loss)] }
+					);
+				return { head: [{ label: U.cmp.avgChange }], rows };
+			}
+		}
+		return null;
+	}
+
 	const cards = $derived(
 		findings.flatMap((f) => {
 			const text = (M.findings as Record<string, FindingText>)[f.id]?.(f, fmt);
 			if (!text) return [];
 			const h = headline(f);
-			return [{ id: f.id, title: M.ui.findingTitles[f.id] ?? '', text, value: h?.value, tone: h?.tone }];
+			return [{ id: f.id, title: M.ui.findingTitles[f.id] ?? '', text, value: h?.value, tone: h?.tone, cmp: compare(f) }];
 		})
 	);
 </script>
@@ -62,6 +126,24 @@
 				<span class="title">{c.title}</span>
 				{#if c.value}<span class="value">{c.value}</span>{/if}
 			</header>
+			{#if c.cmp}
+				<table class="cmp">
+					<thead>
+						<tr>
+							<th></th>
+							{#each c.cmp.head as h (h.label)}<th>{h.label}{#if h.sub}<span class="sub">{h.sub}</span>{/if}</th>{/each}
+						</tr>
+					</thead>
+					<tbody>
+						{#each c.cmp.rows as r (r.label)}
+							<tr>
+								<td>{r.label}{#if r.sub}<span class="sub">{r.sub}</span>{/if}</td>
+								{#each r.cells as v, i (i)}<td>{v}</td>{/each}
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			{/if}
 			<p>{c.text}</p>
 		</article>
 	{/each}
@@ -122,6 +204,44 @@
 	}
 	.card:not(.good):not(.bad) .value {
 		color: var(--ink);
+	}
+	.cmp {
+		width: 100%;
+		border-collapse: collapse;
+		margin: 4px 0 10px;
+		font-size: 13.5px;
+		font-variant-numeric: tabular-nums;
+	}
+	.cmp th,
+	.cmp td {
+		padding: 4px 0;
+		border-bottom: 1px solid var(--line);
+		text-align: right;
+	}
+	.cmp th {
+		font-size: 11.5px;
+		font-weight: 600;
+		color: var(--ink2);
+		vertical-align: bottom;
+		padding-left: 8px;
+	}
+	.cmp .sub {
+		display: block;
+		font-weight: 400;
+		font-size: 11px;
+	}
+	.cmp td:first-child {
+		text-align: left;
+		color: var(--ink2);
+	}
+	.cmp td:not(:first-child) {
+		font-weight: 600;
+		color: var(--ink);
+		white-space: nowrap;
+		padding-left: 8px;
+	}
+	.cmp tr:last-child td {
+		border-bottom: 0;
 	}
 	p {
 		margin: 0;

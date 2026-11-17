@@ -36,6 +36,8 @@ export interface Summary {
 	trend_per_month?: Num;
 	exp_win_pct?: Num;
 	expected_wins?: Num;
+	rated_wins?: number; // wins in the matches that have expected wins
+	rated_matches?: number;
 	wins_above_expected?: Num;
 	longest_win_streak: number;
 	longest_loss_streak: number;
@@ -131,6 +133,13 @@ export type Finding = { id: string } & Record<string, any>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Tip = { id: string; kind: 'work' | 'strength' | 'info'; params: Record<string, any> };
 
+export type Tournament = Agg & {
+	tournament: string;
+	partner: string | null;
+	date: string;
+	losses: number;
+};
+
 export interface FormatData {
 	format: 'DOUBLES' | 'SINGLES';
 	summary: Summary;
@@ -152,6 +161,9 @@ export interface FormatData {
 	opponents: { opponent: string; matches: number; wins: number; win_pct: Num; point_share: Num }[];
 	by_source: (Agg & { source: string })[];
 	by_rest: (Agg & { rest: RestKey })[];
+	// Optional: reports made before tournaments were added don't have these.
+	tournaments?: Tournament[];
+	by_context?: (Agg & { context: 'tournament' | 'other' })[];
 	best: Match[];
 	worst: Match[];
 	partner_effect: Effect | null;

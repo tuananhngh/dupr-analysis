@@ -174,6 +174,8 @@ def format_data(a: Analysis) -> dict:
         "opponents": records(a.opponents, ["matches", "wins", "win_pct", "point_share"], index="opponent"),
         "by_source": records(a.by_source, AGG_COLS, index="source"),
         "by_rest": records(a.by_rest, AGG_COLS, index="rest"),
+        "tournaments": records(a.tournaments, ["tournament", "partner", "date", "losses", *AGG_COLS]),
+        "by_context": records(a.by_context, AGG_COLS, index="context"),
         "best": records(a.best, index=None),
         "worst": records(a.worst, index=None),
         "partner_effect": _effect(a.partner_effect) if a.fmt == "DOUBLES" else None,

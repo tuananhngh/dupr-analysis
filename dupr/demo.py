@@ -16,9 +16,14 @@ def generate(n: int = 160, seed: int = 7) -> tuple[dict, list[dict]]:
     date = datetime(2023, 3, 1)
     matches = []
     for k in range(n):
-        date += timedelta(days=rng.choice([0, 1, 2, 3, 4, 7, 7, 10, 14, 21]))
+        # Every 25 matches, a one-day tournament: 3 group matches, then quarter and semi final.
+        t_round = k % 25 if k >= 25 else -1
+        in_tournament = 0 <= t_round < 5
+        if not in_tournament or t_round == 0:
+            date += timedelta(days=rng.choice([0, 1, 2, 3, 4, 7, 7, 10, 14, 21]))
         skill += 0.006 + rng.gauss(0, 0.01)
-        p = rng.choice(partners)
+        if not in_tournament or t_round == 0:  # same partner for a whole tournament
+            p = rng.choice(partners)
         o1, o2 = rng.sample(others, 2)
         mine = (skill + p["skill"]) / 2
         theirs = (o1["skill"] + o2["skill"]) / 2
@@ -54,8 +59,12 @@ def generate(n: int = 160, seed: int = 7) -> tuple[dict, list[dict]]:
         teams = [team(ME, p, g_me, won, rating, p["skill"], impact),
                  team(o1, o2, g_op, not won, o1["skill"], o2["skill"], -impact)]
         rng.shuffle(teams)
-        matches.append({"matchId": 90000 + k, "eventDate": date.strftime("%Y-%m-%d"), "format": "DOUBLES",
-                        "matchSource": rng.choice(["CLUB", "CLUB", "LEAGUE", "TOURNAMENT"]),
-                        "eventName": "Demo event", "confirmed": True, "teams": teams})
+        m = {"matchId": 90000 + k, "eventDate": date.strftime("%Y-%m-%d"), "format": "DOUBLES",
+             "matchSource": rng.choice(["CLUB", "CLUB", "LEAGUE"]),
+             "eventName": "Demo event", "confirmed": True, "teams": teams}
+        if in_tournament:
+            stage = ["Pool A", "Pool A", "Pool A", "Quarter Final", "Semi Final"][t_round]
+            m.update(matchSource="CLUB", tournament="", eventName=f"Demo Open {k // 25} - Mixed Doubles - {stage}")
+        matches.append(m)
         rating += impact
     return {"id": ME["id"], "fullName": ME["fullName"]}, matches[::-1]
