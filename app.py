@@ -52,5 +52,5 @@ if __name__ == "__main__":
     url = f"http://127.0.0.1:{args.port}"
     if not args.no_open:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
-    print(f"DUPR analysis running at {url}  (Ctrl+C to stop)")
+    print(f"PickleStats running at {url}  (Ctrl+C to stop)")
     app.run(host="127.0.0.1", port=args.port, debug=False)

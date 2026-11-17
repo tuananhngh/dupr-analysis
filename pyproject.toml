@@ -1,5 +1,5 @@
 [project]
-name = "dupr-analysis"
+name = "picklestats"
 version = "0.1.0"
 description = "Download DUPR match history and analyse performance over time"
 requires-python = ">=3.12"
