@@ -80,7 +80,9 @@ const findings: Messages['findings'] = {
 		`D’après l’écart de notes, vous deviez gagner environ ${num(f.expected, 1)} matchs ; vous en avez gagné ${f.wins} ` +
 		`(${signed(f.above, 1)}) : vous faites ${f.above > 0 ? 'mieux' : 'moins bien'} que ce que prévoient les notes.`,
 	underdog: (f) =>
-		`Quand votre équipe est moins bien notée que les adversaires, vous gagnez ${pct(f.win_pct)} des matchs (${f.matches} matchs).`,
+		`Quand les notes donnent à votre équipe 40 % de chances ou moins, vous gagnez ${pct(f.win_pct)} des matchs (${f.matches} matchs).`,
+	favourite: (f) =>
+		`Quand les notes donnent à votre équipe 60 % de chances ou plus, vous gagnez ${pct(f.win_pct)} des matchs (${f.matches} matchs).`,
 	close_games: (f) =>
 		`Jeux serrés (2 points d’écart ou moins) : ${pct(f.pct)} gagnés sur ${f.games} jeux – ` +
 		`${{ clutch: 'vous êtes solide dans les fins serrées', weak: 'un point faible', coin_flip: 'du pile ou face' }[f.verdict as string]}.`,
@@ -375,7 +377,23 @@ export const fr: Messages = {
 		showFewer: 'Voir moins',
 		with: 'avec',
 		vs: 'contre',
-		allNumbers: 'Tous les chiffres'
+		allNumbers: 'Tous les chiffres',
+		perMonth: '/mois',
+		findingTitles: {
+			rating_change: 'Note',
+			trend: 'Tendance',
+			best_period: 'Meilleure période',
+			halves: 'Avant / maintenant',
+			vs_expected: 'Face aux pronostics',
+			underdog: 'En outsider',
+			favourite: 'En favori',
+			close_games: 'Jeux serrés',
+			deciders: 'Jeux décisifs',
+			partners: 'Partenaires',
+			rest: 'Repos entre les matchs',
+			impact: 'Ce que vaut un résultat',
+			streaks: 'Séries'
+		}
 	},
 
 	h: {

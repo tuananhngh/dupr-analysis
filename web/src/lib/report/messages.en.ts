@@ -75,7 +75,9 @@ const findings = {
 		`Compared with the rating-gap model you won ${f.wins} matches against ~${num(f.expected, 1)} expected ` +
 		`(${signed(f.above, 1)}): you ${f.above > 0 ? 'outperform' : 'underperform'} the ratings on paper.`,
 	underdog: (f) =>
-		`When your team is rated lower than the opponents you win ${pct(f.win_pct)} (${f.matches} matches).`,
+		`When the ratings give your team 40% or less to win, you win ${pct(f.win_pct)} (${f.matches} matches).`,
+	favourite: (f) =>
+		`When the ratings give your team 60% or more to win, you win ${pct(f.win_pct)} (${f.matches} matches).`,
 	close_games: (f) =>
 		`Close games (decided by 2 points or fewer): ${pct(f.pct)} won over ${f.games} games – ` +
 		`${{ clutch: 'clutch', weak: 'a weak spot', coin_flip: 'a coin flip' }[f.verdict as string]}.`,
@@ -378,7 +380,23 @@ export const en = {
 		showFewer: 'Show fewer',
 		with: 'with',
 		vs: 'vs',
-		allNumbers: 'All numbers'
+		allNumbers: 'All numbers',
+		perMonth: '/mo',
+		findingTitles: {
+			rating_change: 'Rating',
+			trend: 'Trend',
+			best_period: 'Best period',
+			halves: 'Then vs now',
+			vs_expected: 'Against the odds',
+			underdog: 'As the underdog',
+			favourite: 'As the favourite',
+			close_games: 'Close games',
+			deciders: 'Deciding games',
+			partners: 'Partners',
+			rest: 'Rest between matches',
+			impact: 'What a result is worth',
+			streaks: 'Streaks'
+		} as Record<string, string>
 	},
 
 	h: {

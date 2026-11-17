@@ -1,7 +1,6 @@
 <script lang="ts">
 	// One format (doubles or singles): hero, highlights, then the details in tabs.
 	import { m } from './messages.ts';
-	import type { FindingText } from './messages.en.ts';
 	import { date, isNum, monthYear, num, pct, periodLabel, rating, signed } from './format.ts';
 	import type { Agg, FormatData, Match } from './types.ts';
 	import ChartCard from './ChartCard.svelte';
@@ -10,6 +9,7 @@
 	import Hero from './Hero.svelte';
 	import Highlights from './Highlights.svelte';
 	import MatchFeed from './MatchFeed.svelte';
+	import Findings from './Findings.svelte';
 	import { printing } from './print.svelte.ts';
 	import RatingChart from './charts/RatingChart.svelte';
 	import MonthlyChangeChart from './charts/MonthlyChangeChart.svelte';
@@ -55,11 +55,7 @@
 		return t;
 	});
 
-	const findings = $derived(
-		d.findings
-			.map((f) => (M.findings as Record<string, FindingText>)[f.id]?.(f, M.formatLower[d.format] ?? ''))
-			.filter((x): x is string => !!x)
-	);
+	const findings = $derived(d.findings.filter((f) => f.id in M.findings));
 
 	// ---- tables
 	const aggCols = (): Column<Agg>[] => [
@@ -121,9 +117,7 @@
 			{/if}
 			{#if findings.length}
 				<h3>{M.ui.insights}</h3>
-				<ul class="findings">
-					{#each findings as f, i (i)}<li>{f}</li>{/each}
-				</ul>
+				<Findings {findings} fmt={M.formatLower[d.format] ?? ''} />
 			{/if}
 		</div>
 	{/if}
@@ -339,16 +333,6 @@
 	.val {
 		font-size: 22px;
 		font-weight: 650;
-	}
-	.findings {
-		background: var(--surface);
-		border: 1px solid var(--line);
-		border-radius: 12px;
-		padding: 12px 16px 12px 34px;
-		margin: 0;
-	}
-	.findings li {
-		margin: 6px 0;
 	}
 	.takeaway {
 		max-width: 900px;

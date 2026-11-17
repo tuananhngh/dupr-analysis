@@ -32,6 +32,9 @@ EXPECTATION_SCALE = 0.5
 # it ranged from 0.47 to 1.15 (10th–90th percentile), around a full-data value of 0.73.
 SCALE_MIN_MATCHES = 30
 SCALE_BOUNDS = (0.3, 1.5)             # safety limits: 0.3 = near-deterministic, 1.5 = near coin flip
+# A team is the favourite when the win model gives it 60%+, the underdog at 40% or less (a gap of
+# about ±0.09 with scale 0.5, ±0.13 with scale 0.73), so it adapts to the player's fitted scale.
+FAVOURITE_P = 0.6
 _SCALE_GRID = np.round(np.arange(SCALE_BOUNDS[0], SCALE_BOUNDS[1] + 1e-9, 0.01), 2)
 
 
@@ -253,10 +256,9 @@ def improvement_tips(a: "Analysis") -> list[dict]:
         if heavy >= t["heavy_loss_pct"]:
             tips.append(_tip("work", "heavy_losses", pct=heavy, threshold=t["heavy_loss_pct"]))
 
-    # 5. Losses you were expected to win. "Expected" = win model gives 60%+ (a gap of about
-    #    +0.09 with scale 0.5, +0.13 with scale 0.73), so it adapts to the player's fitted scale.
+    # 5. Losses as the favourite (FAVOURITE_P).
     exp = df.dropna(subset=["exp_win"])
-    upsets = exp[(~exp["won"]) & (exp["exp_win"] >= 0.6)]
+    upsets = exp[(~exp["won"]) & (exp["exp_win"] >= FAVOURITE_P)]
     if len(exp) >= 15 and len(upsets) >= 3:
         cost = upsets["rating_impact"].sum(min_count=1)
         tips.append(_tip("work", "favourite_losses", matches=len(upsets),
@@ -708,9 +710,12 @@ def _insights(a: Analysis) -> list[dict]:
     if "wins_above_expected" in s and not math.isnan(s["wins_above_expected"]):
         out.append({"id": "vs_expected", "wins": s["wins"], "expected": s["expected_wins"],
                     "above": s["wins_above_expected"]})
-    under = df[df["rating_diff"] <= -0.1]       # team rated 0.1+ below the opponents
+    under = df[df["exp_win"] <= 1 - FAVOURITE_P]
     if len(under) >= 3:
         out.append({"id": "underdog", "win_pct": under["won"].mean() * 100, "matches": len(under)})
+    fav = df[df["exp_win"] >= FAVOURITE_P]
+    if len(fav) >= 3:
+        out.append({"id": "favourite", "win_pct": fav["won"].mean() * 100, "matches": len(fav)})
     c = a.close_games
     if c.get("close_games", 0) >= 5:
         verdict = "clutch" if c["close_win_pct"] >= 55 else "weak" if c["close_win_pct"] <= 45 else "coin_flip"

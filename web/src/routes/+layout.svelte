@@ -1,5 +1,6 @@
 <script lang="ts">
 	import 'layerchart/core.css';
+	import '@fontsource-variable/inter';
 	import favicon from '#lib/assets/favicon.svg';
 	import { onMount } from 'svelte';
 	import { i18n, initLang, t } from '#lib/i18n.svelte.ts';
@@ -46,6 +47,10 @@
 	:global(*) {
 		box-sizing: border-box;
 	}
+	:global(body) {
+		-webkit-font-smoothing: antialiased;
+		font-feature-settings: 'cv11', 'ss01';
+	}
 	/* Chart axis text (LayerChart's default is a little small). */
 	:global(.lc-axis-tick-label),
 	:global(.lc-axis-label) {
@@ -62,7 +67,8 @@
 		background: var(--bg);
 		color: var(--ink);
 		font:
-			15px/1.55 Inter,
+			15px/1.55 'Inter Variable',
+			Inter,
 			-apple-system,
 			'Segoe UI',
 			sans-serif;
