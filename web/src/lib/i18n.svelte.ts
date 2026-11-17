@@ -64,15 +64,15 @@ export type Key = keyof typeof en;
 const fr: typeof en = {
 	docTitle: 'PickleStats · Analyse de performance pour les joueurs DUPR',
 	description:
-		'Suivez l\'évolution de votre jeu de pickleball : votre note DUPR, votre forme, vos partenaires, vos adversaires et les points à travailler.',
+		'Suis l\'évolution de ton jeu de pickleball : ta note DUPR, ta forme, tes partenaires, tes adversaires et les points à travailler.',
 	title: 'PickleStats',
 	tagline: 'Analyse de performance pour les joueurs DUPR',
-	heroTitle: 'Votre jeu de pickleball, en chiffres',
+	heroTitle: 'Ton jeu de pickleball, en chiffres',
 	heroSub:
-		'Transformez vos matchs DUPR en une vue claire : l’évolution de votre note, votre forme, avec qui vous gagnez le plus, quels adversaires vous posent problème et quoi travailler ensuite.',
+		'Transforme tes matchs DUPR en une vue claire : l’évolution de ta note, ta forme, avec qui tu gagnes le plus, quels adversaires te posent problème et quoi travailler ensuite.',
 	ctaStart: 'Obtenir mon rapport',
 	ctaDemo: 'Voir un exemple',
-	free: 'Gratuit · sans inscription · rien ne quitte votre navigateur',
+	free: 'Gratuit · sans inscription · rien ne quitte ton navigateur',
 	welcomeBack: 'Bon retour',
 	previewTag: 'Exemple de rapport',
 	pvRating: 'Note DUPR',
@@ -81,41 +81,41 @@ const fr: typeof en = {
 	pvStreakSub: 'matchs d’affilée',
 	pvOdds: 'Au-dessus des pronostics',
 	pvOddsSub: 'victoires de plus que prévu',
-	featuresTitle: 'Ce que montre votre rapport',
+	featuresTitle: 'Ce que montre ton rapport',
 	f1t: 'Note et forme',
-	f1d: 'La courbe de votre note, votre tendance par mois, et si vos résultats récents sont au-dessus ou en dessous de ce que prévoit votre note.',
+	f1d: 'La courbe de ta note, ta tendance par mois, et si tes résultats récents sont au-dessus ou en dessous de ce que prévoit ta note.',
 	f2t: 'Partenaires',
-	f2d: 'Avec qui vous gagnez le plus souvent, et quels duos font vraiment monter votre note.',
+	f2d: 'Avec qui tu gagnes le plus souvent, et quels duos font vraiment monter ta note.',
 	f3t: 'Adversaires',
-	f3d: 'Vos résultats contre des équipes plus faibles, de même niveau ou plus fortes, et si jouer contre plus fort vous rapporte.',
+	f3d: 'Tes résultats contre des équipes plus faibles, de même niveau ou plus fortes, et si jouer contre plus fort te rapporte.',
 	f4t: 'À travailler',
-	f4d: 'Des conseils concrets tirés de vos propres jeux (débuts lents, fins serrées, lourdes défaites), adaptés à votre niveau.',
-	stepsTitle: 'Votre rapport en 3 étapes',
-	lastSync: 'Votre dernière synchronisation',
+	f4d: 'Des conseils concrets tirés de tes propres jeux (débuts lents, fins serrées, lourdes défaites), adaptés à ton niveau.',
+	stepsTitle: 'Ton rapport en 3 étapes',
+	lastSync: 'Ta dernière synchronisation',
 	openLast: 'Ouvrir mon rapport',
 	forget: 'Effacer mes données',
 	step1:
-		'<b>Une seule fois :</b> faites glisser ce bouton dans votre barre de favoris <span class="small">(affichez la barre avec ⌘⇧B sur Mac, Ctrl+Maj+B sur Windows)</span>',
+		'<b>Une seule fois :</b> fais glisser ce bouton dans ta barre de favoris <span class="small">(affiche la barre avec ⌘⇧B sur Mac, Ctrl+Maj+B sur Windows)</span>',
 	step2:
-		'Ouvrez <a href="https://dashboard.dupr.com" target="_blank" rel="noopener">dashboard.dupr.com</a> et connectez-vous comme d\'habitude.',
+		'Ouvre <a href="https://dashboard.dupr.com" target="_blank" rel="noopener">dashboard.dupr.com</a> et connecte-toi comme d\'habitude.',
 	step3:
-		'Cliquez sur le favori <b>⟳ Sync DUPR</b>. Vos matchs sont téléchargés et vous revenez ici pour voir votre rapport.',
+		'Clique sur le favori <b>⟳ Sync DUPR</b>. Tes matchs sont téléchargés et tu reviens ici pour voir ton rapport.',
 	privacy:
-		'Vous vous connectez sur le site de DUPR : votre mot de passe ne passe jamais par cette page. Vos données restent dans votre navigateur et ne sont jamais envoyées ailleurs. Fonctionne sur ordinateur (Chrome, Edge, Firefox, Safari).',
+		'Tu te connectes sur le site de DUPR : ton mot de passe ne passe jamais par cette page. Tes données restent dans ton navigateur et ne sont jamais envoyées ailleurs. Fonctionne sur ordinateur (Chrome, Edge, Firefox, Safari).',
 	dragAlert:
-		'Faites glisser ce bouton dans votre barre de favoris, puis cliquez dessus quand vous êtes sur dashboard.dupr.com.',
+		'Fais glisser ce bouton dans ta barre de favoris, puis clique dessus quand tu es sur dashboard.dupr.com.',
 	reportTitle: 'PickleStats',
 	print: 'Imprimer / PDF',
 	back: 'Retour',
-	building: 'Création de votre rapport…',
+	building: 'Création de ton rapport…',
 	starting: 'Démarrage…',
 	loadEngine: "Chargement du moteur d'analyse (10 à 20 secondes la première fois)…",
 	loadData: 'Chargement des outils de données…',
-	analysing: 'Analyse de vos matchs…',
+	analysing: 'Analyse de tes matchs…',
 	done: 'Terminé',
 	failed: 'Impossible de créer le rapport',
 	syncedOn: (date: string, time: string) =>
-		`Synchronisé le ${date} à ${time}. Pour le mettre à jour, cliquez à nouveau sur le favori sur dupr.com.`
+		`Synchronisé le ${date} à ${time}. Pour le mettre à jour, clique à nouveau sur le favori sur dupr.com.`
 };
 
 const I18N = { en, fr };

@@ -7,13 +7,6 @@ import type { Agg, CloseGames, Finding, Period, RestKey, Verdict } from './types
 const abs3 = (v: number) => num(Math.abs(v), 3);
 const periodWord: Record<Period, string> = { week: 'week', month: 'month', quarter: 'quarter' };
 
-const restPhrase: Record<RestKey, string> = {
-	same_day: 'when you already played earlier the same day',
-	'1_3': 'when your previous match was 1–3 days before',
-	'4_7': 'when your previous match was 4–7 days before',
-	'8_14': 'when your previous match was 1–2 weeks before',
-	'15_plus': 'after a break of more than 2 weeks'
-};
 
 function move(v: number, measure: string): string {
 	if (measure === 'rating_impact') return v >= 0 ? `gain ${abs3(v)} rating` : `lose ${abs3(v)} rating`;
@@ -31,19 +24,32 @@ function vsPrediction(actual: number, predicted: number | null | undefined): str
 
 export type FindingText = (f: Finding, fmt: string) => string;
 
+// Underdog / favourite: actual wins compared with expected wins, in matches.
+function oddsText(f: Finding, role: string, odds: string): string {
+	const s = `The ratings made you ${role} in ${f.matches} matches, with ${odds} chance to win.`;
+	if (f.wins == null || f.exp_win_pct == null) return `${s} You won ${pct(f.win_pct)} of them.`;
+	const exp = num((f.exp_win_pct * f.matches) / 100, 1);
+	const diff = f.win_pct - f.exp_win_pct;
+	const vs = diff >= 3 ? 'more than' : diff <= -3 ? 'fewer than' : 'close to';
+	return `${s} You won ${f.wins} of them (${pct(f.win_pct)}), ${vs} the ${exp} predicted.`;
+}
+
 const findings = {
-	rating_change: (f, fmt) =>
-		`Your ${fmt} rating went ${f.change >= 0 ? 'up' : 'down'} ${abs3(f.change)} (${rating(f.start)} → ` +
-		`${rating(f.now)}) over ${f.matches} matches; peak ${rating(f.peak)} on ${date(f.peak_date)}.`,
-	trend: (f) =>
-		`Long-run trend: ${signed(f.per_month)} per month` +
-		(f.last_90d != null
-			? `; last 90 days: ${signed(f.last_90d)} per month (${{ faster: 'speeding up', slower: 'slowing down', steady: 'steady' }[f.pace as string]})`
-			: '') +
-		'.',
-	best_period: (f) =>
-		`Best ${periodWord[f.period as Period]}: ${periodLabel(f.best, f.period)} (${pct(f.best_pct)} wins over ` +
-		`${f.best_n} matches); worst: ${periodLabel(f.worst, f.period)} (${pct(f.worst_pct)} over ${f.worst_n}).`,
+	// Rating, trend and best period: numbers are in the card's table (Findings.svelte); text is the conclusion.
+	rating_change: (f, fmt) => `${f.change >= 0 ? 'Up' : 'Down'} ${abs3(f.change)} over ${f.matches} ${fmt} matches.`,
+	trend: (f): string => {
+		if (f.last_90d == null) return 'Average change in your rating per month since your first match.';
+		if (f.pace === 'steady') return 'Same pace over the last 90 days.';
+		const r = f.last_90d as number,
+			t = f.per_month as number;
+		if (r >= 0 !== t >= 0) return r >= 0 ? 'Your rating has turned up recently.' : 'Your rating has turned down recently.';
+		if (r >= 0) return f.pace === 'faster' ? 'Your rating is rising faster lately.' : 'Your rating is rising more slowly lately.';
+		return f.pace === 'faster' ? 'Your rating is falling more slowly lately.' : 'Your rating is falling faster lately.';
+	},
+	best_period: (f) => {
+		const w = periodWord[f.period as Period];
+		return `Your best and worst ${w} by win rate. Only ${w}s with ${f.min_matches ?? 5}+ matches count.`;
+	},
 	// The numbers are in a then/now table on the card (Findings.svelte); this is only the conclusion.
 	halves: (f) => {
 		const fallback = `Your first ${f.n_early} matches compared with your last ${f.n_late}.`;
@@ -64,12 +70,11 @@ const findings = {
 		return s?.trim() ?? fallback;
 	},
 	vs_expected: (f) =>
-		`Compared with the rating-gap model you won ${f.wins} matches against ~${num(f.expected, 1)} expected ` +
-		`(${signed(f.above, 1)}): you ${f.above > 0 ? 'outperform' : 'underperform'} the ratings on paper.`,
-	underdog: (f) =>
-		`When the ratings give your team 40% or less to win, you win ${pct(f.win_pct)} (${f.matches} matches).`,
-	favourite: (f) =>
-		`When the ratings give your team 60% or more to win, you win ${pct(f.win_pct)} (${f.matches} matches).`,
+		(f.matches ? `Out of ${f.matches} matches, the` : 'The') +
+		` ratings predicted about ${num(f.expected, 1)} wins. You won ${f.wins} (${signed(f.above, 1)}), so you ` +
+		`${f.above > 0 ? 'do better' : 'do less well'} than the ratings predict.`,
+	underdog: (f) => oddsText(f, 'the underdog', '40% or less'),
+	favourite: (f) => oddsText(f, 'the favourite', '60% or more'),
 	close_games: (f) =>
 		`Close games (decided by 2 points or fewer): ${pct(f.pct)} won over ${f.games} games – ` +
 		`${{ clutch: 'clutch', weak: 'a weak spot', coin_flip: 'a coin flip' }[f.verdict as string]}.`,
@@ -77,38 +82,14 @@ const findings = {
 	partners: (f) =>
 		`Best regular partner: ${f.best} (${pct(f.best_pct)} in ${f.best_n}); toughest: ${f.worst} ` +
 		`(${pct(f.worst_pct)} in ${f.worst_n}).`,
-	rest: (f) => {
-		let s =
-			`Time between matches: you win most often ${restPhrase[f.best as RestKey]} (${pct(f.best_pct)} of ` +
-			`${f.best_n} matches) and least often ${restPhrase[f.worst as RestKey]} (${pct(f.worst_pct)} of ${f.worst_n} matches).`;
-		s += {
-			small: " The difference is small, so rest time doesn't seem to matter much for you.",
-			tiring: ' Playing several matches in one session may tire you: watch your energy in later matches.',
-			rhythm: ' Long breaks seem to cost you rhythm: after time off, a practice session before competing may help.',
-			shorter: ' Shorter gaps between matches seem to suit you better than longer ones.',
-			longer: ' A bit more rest between matches seems to suit you better than playing very often.'
-		}[f.meaning as string];
-		if (f.few && f.meaning !== 'small') s += ' Few matches in these groups, so treat this as a hint, not a rule.';
-		return s;
-	},
-	impact: (f) => {
-		let s =
-			`On average a win raises your rating by ${abs3(f.win)} and a loss ` +
-			`${f.loss < 0 ? 'lowers' : 'still raises'} it by ${abs3(f.loss)}.`;
-		if (f.close_loss != null && f.heavy_loss != null) {
-			const cost = (v: number) => (v < 0 ? `costs you ${abs3(v)}` : `still gains you ${abs3(v)}`);
-			s +=
-				` The score matters, not just the result: a close loss (3 points or less per game) ${cost(f.close_loss)} ` +
-				`on average, while a heavy loss (6+ points per game) ${cost(f.heavy_loss)}. Keeping lost games close protects your rating.`;
-		}
-		return s;
-	},
-	streaks: (f) => {
-		let s = `Your longest winning streak is ${f.longest_win} matches in a row, and your longest losing streak is ${f.longest_loss}.`;
-		if (f.current_won == null || !f.current) return s;
-		if (f.current === 1) return s + ` You ${f.current_won ? 'won' : 'lost'} your last match.`;
-		return s + ` Right now you have ${f.current_won ? 'won' : 'lost'} your last ${f.current} matches in a row.`;
-	}
+	// Numbers are in the card's table (Findings.svelte); this is the conclusion.
+	impact: (f): string =>
+		f.close_loss != null && f.heavy_loss != null
+			? 'The score matters, not just the result. Keeping lost games close protects your rating.'
+			: 'Average change in your rating after a win and after a loss.',
+	// Only the longest streaks: the current run is visible in the recent-matches row.
+	streaks: (f) =>
+		`Your longest winning streak is ${f.longest_win > 1 ? `${f.longest_win} matches in a row` : '1 match'}, and your longest losing streak is ${f.longest_loss}.`
 } satisfies Record<string, FindingText>;
 
 export type TipText = {
@@ -266,16 +247,16 @@ function opponentVerdict(v: Verdict): string {
 	if (v.clear)
 		s += v.diff > 0 ? ' So playing up is helping your rating.' : ' So far, playing up has cost you rating.';
 	else
-		s += ` Playing up looks ${v.diff > 0 ? 'better' : 'worse'}, but the gap is small next to normal match-to-match variation, so nothing firm yet.`;
-	s += ` Against them you win ${pct(v.win_pct_strong)} of matches${vsPrediction(v.win_pct_strong!, v.exp_win_pct_strong)}.`;
+		s += ` Playing up looks ${v.diff > 0 ? 'better' : 'worse'}, but the gap is small next to normal match-to-match variation.`;
+	s += ` When playing up, you win ${pct(v.win_pct_strong)} of matches${vsPrediction(v.win_pct_strong!, v.exp_win_pct_strong)}.`;
 	if (v.loss_mean != null) {
 		const ml = v.loss_mean,
 			all = v.all_losses_mean ?? 0;
 		if (ml >= 0)
-			s += ` Even your losses to them gain you ${abs3(ml)} on average: DUPR expects you to lose, so a close score is enough to raise your rating.`;
+			s += ` Even when you lose to a stronger team, you gain ${abs3(ml)} on average. DUPR expects you to lose these matches, so a close score is enough to raise your rating.`;
 		else if (Math.abs(ml) < Math.abs(all))
-			s += ` Those losses cost only ${abs3(ml)} on average, against ${abs3(all)} for a typical loss: DUPR expects them, and a close score can even turn one into a small gain.`;
-		else s += ` Those losses cost ${abs3(ml)} on average.`;
+			s += ` Losing to a stronger team costs only ${abs3(ml)} on average, against ${abs3(all)} for a typical loss. DUPR expects these losses, and a close score can even turn one into a small gain.`;
+		else s += ` Losing to a stronger team costs ${abs3(ml)} on average.`;
 	}
 	return s;
 }
@@ -378,6 +359,26 @@ export const en = {
 		vs: 'vs',
 		allNumbers: 'All numbers',
 		perMonth: '/mo',
+		cmp: {
+			rating: 'Rating',
+			start: 'Start',
+			peak: 'Peak',
+			now: 'Now',
+			perMonth: 'Per month',
+			sinceStart: 'Since the start',
+			last90: 'Last 90 days',
+			winPct: 'Win %',
+			matches: 'Matches',
+			best: (_p: Period) => 'Best',
+			worst: (_p: Period) => 'Worst',
+			avgChange: 'Avg rating change',
+			win: 'Win',
+			loss: 'Loss',
+			closeLoss: 'Close loss',
+			closeLossSub: '3 points or less per game',
+			heavyLoss: 'Heavy loss',
+			heavyLossSub: '6+ points per game'
+		},
 		halves: { then: 'Then', now: 'Now', matches: 'Matches', won: 'Matches won', points: 'Points won', opp: 'Opponents’ rating' },
 		findingTitles: {
 			rating_change: 'Rating',
@@ -390,7 +391,6 @@ export const en = {
 			close_games: 'Close games',
 			deciders: 'Deciding games',
 			partners: 'Partners',
-			rest: 'Rest between matches',
 			impact: 'What a result is worth',
 			streaks: 'Streaks'
 		} as Record<string, string>
@@ -516,8 +516,8 @@ export const en = {
 	tournamentsIntro: (n: number, t: Agg | undefined, o: Agg | undefined) =>
 		`${n} tournament${n > 1 ? 's' : ''} found in your matches.` +
 		(t && o
-			? ` In tournaments you win ${pct(t.win_pct)} of matches (${t.matches}), against ${pct(o.win_pct)} elsewhere (${o.matches}); ` +
-				`your rating moved ${signed(t.rating_gained)} in tournaments and ${signed(o.rating_gained)} in other matches.`
+			? ` In tournaments you win ${pct(t.win_pct)} of matches (${t.matches}), against ${pct(o.win_pct)} elsewhere (${o.matches}). ` +
+				`Your rating moved ${signed(t.rating_gained)} in tournaments and ${signed(o.rating_gained)} in other matches.`
 			: ''),
 	tournamentsNote:
 		'DUPR does not send tournament names. They are read from the event name of your matches, so some tournaments may be missing from this list.',

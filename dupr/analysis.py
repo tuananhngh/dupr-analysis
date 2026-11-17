@@ -649,6 +649,11 @@ def analyze(
     if df["exp_win"].notna().any():
         s["exp_win_pct"] = df["exp_win"].mean() * 100
         s["expected_wins"] = df["exp_win"].sum()
+        # Expected wins only cover matches where every player had a rating, so compare with the
+        # wins in those same matches (not all wins).
+        rated = df["exp_win"].notna()
+        s["rated_matches"] = int(rated.sum())
+        s["rated_wins"] = int(df.loc[rated, "won"].sum())
         s["wins_above_expected"] = (df["won"].astype(float) - df["exp_win"]).sum(
             min_count=1
         )
@@ -795,35 +800,6 @@ def analyze(
 REST_KEYS = ["same_day", "1_3", "4_7", "8_14", "15_plus"]
 
 
-def _rest_finding(by_rest: pd.DataFrame) -> dict | None:
-    br = by_rest[by_rest["matches"] >= 5]
-    if len(br) < 2:
-        return None
-    best, worst = br["win_pct"].idxmax(), br["win_pct"].idxmin()
-    b, w = br.loc[best], br.loc[worst]
-    if b["win_pct"] - w["win_pct"] < 10:
-        meaning = "small"  # rest time doesn't seem to matter
-    elif worst == REST_KEYS[0]:
-        meaning = "tiring"  # same-day matches are the worst: energy
-    elif worst == REST_KEYS[-1]:
-        meaning = "rhythm"  # long breaks are the worst: lost rhythm
-    elif REST_KEYS.index(best) < REST_KEYS.index(worst):
-        meaning = "shorter"  # shorter gaps suit you better
-    else:
-        meaning = "longer"  # more rest suits you better
-    return {
-        "id": "rest",
-        "best": best,
-        "best_pct": b["win_pct"],
-        "best_n": int(b["matches"]),
-        "worst": worst,
-        "worst_pct": w["win_pct"],
-        "worst_n": int(w["matches"]),
-        "meaning": meaning,
-        "few": bool(min(b["matches"], w["matches"]) < 15),
-    }
-
-
 def _halves_finding(early: pd.DataFrame, late: pd.DataFrame) -> dict:
     """Earlier matches vs recent matches, and what the change means given the opponents' level."""
     w0, w1 = early["won"].mean() * 100, late["won"].mean() * 100
@@ -896,6 +872,7 @@ def _insights(a: Analysis) -> list[dict]:
                 "id": "rating_change",
                 "change": s["rating_change"],
                 "start": s["rating_start"],
+                "start_date": s["first_match"],
                 "now": s["rating_now"],
                 "matches": s["matches"],
                 "peak": s["rating_peak"],
@@ -917,7 +894,8 @@ def _insights(a: Analysis) -> list[dict]:
         out.append(f)
     per = a.periods
     if per is not None and len(per) >= 2:
-        solid = per[per["matches"] >= max(5, per["matches"].median() / 2)]
+        min_matches = math.ceil(max(5, per["matches"].median() / 2))
+        solid = per[per["matches"] >= min_matches]
         if len(solid) >= 2:
             best, worst = solid["win_pct"].idxmax(), solid["win_pct"].idxmin()
             out.append(
@@ -930,6 +908,7 @@ def _insights(a: Analysis) -> list[dict]:
                     "worst": worst,
                     "worst_pct": solid.loc[worst, "win_pct"],
                     "worst_n": int(solid.loc[worst, "matches"]),
+                    "min_matches": min_matches,
                 }
             )
         half = len(df) // 2
@@ -939,7 +918,8 @@ def _insights(a: Analysis) -> list[dict]:
         out.append(
             {
                 "id": "vs_expected",
-                "wins": s["wins"],
+                "wins": s["rated_wins"],
+                "matches": s["rated_matches"],
                 "expected": s["expected_wins"],
                 "above": s["wins_above_expected"],
             }
@@ -951,12 +931,20 @@ def _insights(a: Analysis) -> list[dict]:
                 "id": "underdog",
                 "win_pct": under["won"].mean() * 100,
                 "matches": len(under),
+                "wins": int(under["won"].sum()),
+                "exp_win_pct": under["exp_win"].mean() * 100,
             }
         )
     fav = df[df["exp_win"] >= FAVOURITE_P]
     if len(fav) >= 3:
         out.append(
-            {"id": "favourite", "win_pct": fav["won"].mean() * 100, "matches": len(fav)}
+            {
+                "id": "favourite",
+                "win_pct": fav["won"].mean() * 100,
+                "matches": len(fav),
+                "wins": int(fav["won"].sum()),
+                "exp_win_pct": fav["exp_win"].mean() * 100,
+            }
         )
     c = a.close_games
     if c.get("close_games", 0) >= 5:
@@ -992,10 +980,9 @@ def _insights(a: Analysis) -> list[dict]:
                     "worst_n": int(p.loc[w, "matches"]),
                 }
             )
-    if a.by_rest is not None and len(a.by_rest) >= 2:
-        f = _rest_finding(a.by_rest)
-        if f:
-            out.append(f)
+    # No "rest between matches" finding: same-day matches are mostly tournament / club-night
+    # sessions and 4–7 day gaps mostly separate events, so the groups compare kinds of events,
+    # not rest. The by_rest table stays in the detailed stats.
     if df["rating_impact"].notna().any():
         f = _impact_finding(df)
         if f:

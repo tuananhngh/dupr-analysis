@@ -47,7 +47,7 @@
 			t.push({
 				label: M.tiles.winsVsExp,
 				value: signed(s.wins_above_expected, 1),
-				sub: M.tiles.winsVsExpSub(s.wins, num(s.expected_wins))
+				sub: M.tiles.winsVsExpSub(s.rated_wins ?? s.wins, num(s.expected_wins))
 			});
 		t.push({ label: M.tiles.pointWin, value: pct(s.point_share, 1), sub: M.tiles.games(s.games_won, s.games_lost) });
 		if (isNum(s.rally_share)) t.push({ label: M.tiles.rallyWin, value: pct(s.rally_share, 1), sub: M.tiles.rallySub });

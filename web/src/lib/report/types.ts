@@ -36,6 +36,8 @@ export interface Summary {
 	trend_per_month?: Num;
 	exp_win_pct?: Num;
 	expected_wins?: Num;
+	rated_wins?: number; // wins in the matches that have expected wins
+	rated_matches?: number;
 	wins_above_expected?: Num;
 	longest_win_streak: number;
 	longest_loss_streak: number;
