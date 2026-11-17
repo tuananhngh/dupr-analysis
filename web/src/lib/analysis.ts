@@ -4,8 +4,7 @@ import type { Key } from './i18n.svelte.ts';
 import type { ReportData } from './report/types.ts';
 
 const PYODIDE_URL = 'https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js';
-const PY_FILES = ['__init__.py', 'parse.py', 'analysis.py', 'export.py', 'demo.py', 'pipeline.py'];
-
+// Every dupr/*.py file is copied into Pyodide, so new modules are picked up automatically.
 const sources = import.meta.glob('../../../dupr/*.py', {
 	query: '?raw',
 	import: 'default',
@@ -47,10 +46,8 @@ function loadPython(progress: Progress): Promise<Pyodide> {
 		progress(35, 'loadData');
 		await py.loadPackage(['numpy', 'pandas']);
 		py.FS.mkdirTree('/home/pyodide/dupr');
-		for (const f of PY_FILES) {
-			const code = sources[`../../../dupr/${f}`];
-			if (code === undefined) throw new Error(`Missing analysis file dupr/${f}`);
-			py.FS.writeFile('/home/pyodide/dupr/' + f, code);
+		for (const [path, code] of Object.entries(sources)) {
+			py.FS.writeFile('/home/pyodide/dupr/' + path.split('/').pop(), code);
 		}
 		return py;
 	})().catch((e) => {

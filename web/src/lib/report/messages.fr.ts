@@ -1,6 +1,6 @@
 // Texte français du rapport : même structure que messages.en.ts.
-import { date, num, pct, periodLabel, rating, signed, span } from './format.ts';
-import type { CloseGames, Finding, Period, RestKey, Verdict } from './types.ts';
+import { date, num, pct, periodLabel, rating, signed } from './format.ts';
+import type { Agg, CloseGames, Finding, Period, RestKey, Verdict } from './types.ts';
 import type { Messages } from './messages.en.ts';
 
 const abs3 = (v: number) => num(Math.abs(v), 3);
@@ -48,19 +48,11 @@ const findings: Messages['findings'] = {
 			`${f.best_n} matchs) ; ${fem(p) ? 'la moins bonne' : 'le moins bon'} : ${periodLabel(f.worst, p)} (${pct(f.worst_pct)} sur ${f.worst_n}).`
 		);
 	},
+	// Les chiffres sont dans un tableau avant/maintenant sur la carte (Findings.svelte) ; ici, la conclusion.
 	halves: (f) => {
-		let s =
-			`Vos ${f.n_early} premiers matchs (${span(f.early_from, f.early_to)}) comparés à vos ${f.n_late} derniers ` +
-			`(${span(f.late_from, f.late_to)}) : vous gagniez ${pct(f.win_early)} des matchs, ${pct(f.win_late)} maintenant ; ` +
-			`${pct(f.points_early)} des points, ${pct(f.points_late)} maintenant.`;
-		if (!f.opponents) return s;
-		const o = `${num(f.opp_early, 2)} → ${num(f.opp_late, 2)}`;
-		s += {
-			stronger: ` Vos adversaires sont aussi plus forts maintenant (note moyenne ${o}).`,
-			weaker: ` Vos adversaires sont moins forts maintenant (note moyenne ${o}).`,
-			same: ` Le niveau de vos adversaires est à peu près le même (note moyenne autour de ${num(f.opp_late, 2)}).`
-		}[f.opponents as string];
-		s += {
+		const fallback = `Vos ${f.n_early} premiers matchs comparés à vos ${f.n_late} derniers.`;
+		if (!f.opponents) return fallback;
+		const s = ({
 			progress_tougher: ' Vous gagnez plus souvent alors que vos adversaires sont plus forts : net progrès.',
 			level_up: ' Des résultats similaires face à des adversaires plus forts : votre niveau a augmenté.',
 			tougher_explains:
@@ -73,8 +65,8 @@ const findings: Messages['findings'] = {
 			slipped:
 				' Adversaires de même niveau ou moins forts, mais moins de victoires : vos résultats ont baissé, regardez ce qui a changé.',
 			stable: ' Dans l’ensemble, votre niveau est stable.'
-		}[f.meaning as string];
-		return s;
+		} as Record<string, string>)[f.meaning as string];
+		return s?.trim() ?? fallback;
 	},
 	vs_expected: (f) =>
 		`D’après l’écart de notes, vous deviez gagner environ ${num(f.expected, 1)} matchs ; vous en avez gagné ${f.wins} ` +
@@ -260,24 +252,27 @@ function opponentVerdict(v: Verdict): string {
 	if (v.status === 'no_data') return 'Pas encore assez de matchs avec la note des adversaires.';
 	if (v.status === 'few')
 		return `Pas encore assez de matchs pour conclure (${v.n_strong} contre des adversaires plus forts, ${v.n_rest} contre des adversaires de niveau égal ou plus faible ; il en faut 5 de chaque).`;
+	// Second figure without repeating "point de note" when the measure is rating change.
+	const rest =
+		v.measure === 'rating_impact'
+			? `${v.mean_rest >= 0 ? 'gagnez' : 'perdez'} ${abs3(v.mean_rest)}`
+			: move(v.mean_rest, v.measure);
 	let s =
-		`Contre des adversaires plus forts, vous ${move(v.mean_strong!, v.measure)} par match en moyenne (${v.n_strong} matchs) ; ` +
-		`contre des adversaires de niveau égal ou plus faible, vous ${move(v.mean_rest, v.measure)} (${v.n_rest} matchs).`;
+		`Contre des adversaires plus forts (${v.n_strong} matchs), vous ${move(v.mean_strong!, v.measure)} par match en moyenne ; ` +
+		`contre un niveau égal ou plus faible (${v.n_rest} matchs), vous ${rest}.`;
 	if (v.clear)
-		s += v.diff > 0 ? ' Jouer contre plus fort aide donc votre note.' : ' Jusqu’ici, jouer contre plus fort vous a coûté des points de note.';
+		s += v.diff > 0 ? ' Jouer contre plus fort aide donc votre note.' : ' Jusqu’ici, jouer contre plus fort vous a coûté des points.';
 	else
-		s += ` Jouer contre plus fort semble ${v.diff > 0 ? 'meilleur' : 'moins bon'} pour votre note, mais l’écart est faible par rapport aux variations normales d’un match à l’autre : ce n’est pas encore une conclusion solide.`;
-	s += ` Vous gagnez ${pct(v.win_pct_strong)} de vos matchs contre des adversaires plus forts${vsPrediction(v.win_pct_strong!, v.exp_win_pct_strong)}.`;
+		s += ` Jouer contre plus fort semble ${v.diff > 0 ? 'plus' : 'moins'} favorable, mais l’écart reste faible au regard des variations normales d’un match à l’autre : rien de sûr pour l’instant.`;
+	s += ` Face à eux, vous gagnez ${pct(v.win_pct_strong)} des matchs${vsPrediction(v.win_pct_strong!, v.exp_win_pct_strong)}.`;
 	if (v.loss_mean != null) {
 		const ml = v.loss_mean,
 			all = v.all_losses_mean ?? 0;
 		if (ml >= 0)
-			s += ` Même quand vous perdez contre eux, vous gagnez encore ${abs3(ml)} point de note en moyenne : DUPR s’attend à ce que vous perdiez ces matchs, donc un score serré suffit à faire monter votre note.`;
-		else
-			s +=
-				` Quand vous perdez contre eux, vous perdez ${abs3(ml)} point de note en moyenne` +
-				(Math.abs(ml) < Math.abs(all) ? `, moins qu’une défaite moyenne (${abs3(all)})` : '') +
-				' : DUPR s’attend à ces défaites, elles coûtent donc peu, et un score serré peut même en faire un petit gain.';
+			s += ` Même vos défaites contre eux vous rapportent ${abs3(ml)} en moyenne : DUPR s’attend à ce que vous les perdiez, un score serré suffit donc à faire monter votre note.`;
+		else if (Math.abs(ml) < Math.abs(all))
+			s += ` Ces défaites ne vous coûtent que ${abs3(ml)} en moyenne, contre ${abs3(all)} pour une défaite habituelle : DUPR s’y attend, et un score serré peut même en faire un petit gain.`;
+		else s += ` Ces défaites vous coûtent ${abs3(ml)} en moyenne.`;
 	}
 	return s;
 }
@@ -346,6 +341,7 @@ export const fr: Messages = {
 			partners: 'Partenaires et jeux',
 			games: 'Jeux',
 			matches: 'Matchs',
+			tournaments: 'Tournois',
 			details: 'Toutes les stats'
 		},
 		ratingLabel: 'Note DUPR',
@@ -379,6 +375,7 @@ export const fr: Messages = {
 		vs: 'contre',
 		allNumbers: 'Tous les chiffres',
 		perMonth: '/mois',
+		halves: { then: 'Avant', now: 'Maintenant', matches: 'Matchs', won: 'Matchs gagnés', points: 'Points gagnés', opp: 'Note des adversaires' },
 		findingTitles: {
 			rating_change: 'Note',
 			trend: 'Tendance',
@@ -412,6 +409,9 @@ export const fr: Messages = {
 		gains: 'Plus fortes hausses de note',
 		losses: 'Plus fortes baisses de note',
 		gameDetails: 'Détail des jeux',
+		tourSummary: 'En résumé',
+		tournaments: 'Vos tournois',
+		vsOther: 'Tournois et autres matchs',
 		allMatches: 'Tous les matchs (du plus récent au plus ancien)'
 	},
 
@@ -503,12 +503,21 @@ export const fr: Messages = {
 	groups: ['Beaucoup plus faibles', 'Plus faibles', 'Même niveau', 'Plus forts', 'Beaucoup plus forts'],
 	groupRanges: ['0,3+ en dessous', '0,1–0,3 en dessous', '±0,1', '0,1–0,3 au-dessus', '0,3+ au-dessus'],
 	rest: {
-		same_day: 'Même jour que le match précédent',
-		'1_3': '1 à 3 jours après le match précédent',
-		'4_7': '4 à 7 jours après le match précédent',
-		'8_14': '8 à 14 jours après le match précédent',
-		'15_plus': '15 jours ou plus après le match précédent'
+		same_day: 'Même jour',
+		'1_3': '1 à 3 jours',
+		'4_7': '4 à 7 jours',
+		'8_14': '8 à 14 jours',
+		'15_plus': '15 jours ou plus'
 	},
+	context: { tournament: 'Tournois', other: 'Autres matchs' },
+	tournamentsIntro: (n, t, o) =>
+		`${n} tournoi${n > 1 ? 's' : ''} trouvé${n > 1 ? 's' : ''} dans vos matchs.` +
+		(t && o
+			? ` En tournoi, vous gagnez ${pct(t.win_pct)} des matchs (${t.matches}), contre ${pct(o.win_pct)} ailleurs (${o.matches}) ; ` +
+				`votre note a varié de ${signed(t.rating_gained)} en tournoi et de ${signed(o.rating_gained)} sur les autres matchs.`
+			: ''),
+	tournamentsNote:
+		'DUPR n’envoie pas le nom des tournois. Il est lu dans le nom de l’événement de vos matchs, donc certains tournois peuvent manquer dans cette liste.',
 	sources: {
 		CLUB: 'Club',
 		PARTNER: 'Partenaire',
@@ -542,6 +551,8 @@ export const fr: Messages = {
 		expWin: '% victoires attendu',
 		avgChange: 'Variation moy. de note',
 		totalChange: 'Variation totale de note',
+		tournament: 'Tournoi',
+		record: 'V\u2060–\u2060D', // liants : jamais de coupure au tiret
 		w: 'V',
 		l: 'D'
 	}

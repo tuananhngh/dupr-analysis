@@ -1,8 +1,8 @@
 // English text of the report. The French version (messages.fr.ts) has the same shape.
 // Numbers come from dupr/analysis.py and dupr/export.py; the choices (which sentence applies) are
 // made there, so these functions only put words around them.
-import { date, num, pct, periodLabel, rating, signed, span } from './format.ts';
-import type { CloseGames, Finding, Period, RestKey, Verdict } from './types.ts';
+import { date, num, pct, periodLabel, rating, signed } from './format.ts';
+import type { Agg, CloseGames, Finding, Period, RestKey, Verdict } from './types.ts';
 
 const abs3 = (v: number) => num(Math.abs(v), 3);
 const periodWord: Record<Period, string> = { week: 'week', month: 'month', quarter: 'quarter' };
@@ -44,19 +44,11 @@ const findings = {
 	best_period: (f) =>
 		`Best ${periodWord[f.period as Period]}: ${periodLabel(f.best, f.period)} (${pct(f.best_pct)} wins over ` +
 		`${f.best_n} matches); worst: ${periodLabel(f.worst, f.period)} (${pct(f.worst_pct)} over ${f.worst_n}).`,
+	// The numbers are in a then/now table on the card (Findings.svelte); this is only the conclusion.
 	halves: (f) => {
-		let s =
-			`Your first ${f.n_early} matches (${span(f.early_from, f.early_to)}) compared with your last ${f.n_late} ` +
-			`(${span(f.late_from, f.late_to)}): you won ${pct(f.win_early)} of matches then, ${pct(f.win_late)} now; ` +
-			`${pct(f.points_early)} of points then, ${pct(f.points_late)} now.`;
-		if (!f.opponents) return s;
-		const o = `${num(f.opp_early, 2)} → ${num(f.opp_late, 2)}`;
-		s += {
-			stronger: ` Your opponents are also stronger now (average rating ${o}).`,
-			weaker: ` Your opponents are weaker now (average rating ${o}).`,
-			same: ` Your opponents' level is about the same (average rating around ${num(f.opp_late, 2)}).`
-		}[f.opponents as string];
-		s += {
+		const fallback = `Your first ${f.n_early} matches compared with your last ${f.n_late}.`;
+		if (!f.opponents) return fallback;
+		const s = ({
 			progress_tougher: ' You win more often even though your opponents are tougher: clear progress.',
 			level_up: ' Getting similar results against tougher opponents means your level has gone up.',
 			tougher_explains:
@@ -68,8 +60,8 @@ const findings = {
 			progress: ' Same level of opponents, better results: clear progress.',
 			slipped: ' Same or weaker opponents but fewer wins: your results have slipped, worth looking at what changed.',
 			stable: ' Overall, your level is stable.'
-		}[f.meaning as string];
-		return s;
+		} as Record<string, string>)[f.meaning as string];
+		return s?.trim() ?? fallback;
 	},
 	vs_expected: (f) =>
 		`Compared with the rating-gap model you won ${f.wins} matches against ~${num(f.expected, 1)} expected ` +
@@ -263,24 +255,27 @@ function opponentVerdict(v: Verdict): string {
 	if (v.status === 'no_data') return 'Not enough matches with known opponent ratings yet.';
 	if (v.status === 'few')
 		return `Not enough matches yet to tell (${v.n_strong} against stronger opponents, ${v.n_rest} against similar or weaker ones; need 5 of each).`;
+	// Second figure without repeating "rating" when the measure is rating change.
+	const rest =
+		v.measure === 'rating_impact'
+			? `${v.mean_rest >= 0 ? 'gain' : 'lose'} ${abs3(v.mean_rest)}`
+			: move(v.mean_rest, v.measure);
 	let s =
-		`Against stronger opponents you ${move(v.mean_strong!, v.measure)} per match on average (${v.n_strong} matches); ` +
-		`against similar or weaker opponents you ${move(v.mean_rest, v.measure)} (${v.n_rest} matches).`;
+		`Against stronger opponents (${v.n_strong} matches) you ${move(v.mean_strong!, v.measure)} per match on average; ` +
+		`against similar or weaker ones (${v.n_rest} matches) you ${rest}.`;
 	if (v.clear)
-		s += v.diff > 0 ? ' So playing stronger opponents is helping your rating.' : ' So far, playing stronger opponents has cost you rating.';
+		s += v.diff > 0 ? ' So playing up is helping your rating.' : ' So far, playing up has cost you rating.';
 	else
-		s += ` Playing up looks ${v.diff > 0 ? 'better' : 'worse'} for your rating, but the difference is small compared with normal match-to-match variation, so it's not a firm conclusion yet.`;
-	s += ` You win ${pct(v.win_pct_strong)} of your matches against stronger opponents${vsPrediction(v.win_pct_strong!, v.exp_win_pct_strong)}.`;
+		s += ` Playing up looks ${v.diff > 0 ? 'better' : 'worse'}, but the gap is small next to normal match-to-match variation, so nothing firm yet.`;
+	s += ` Against them you win ${pct(v.win_pct_strong)} of matches${vsPrediction(v.win_pct_strong!, v.exp_win_pct_strong)}.`;
 	if (v.loss_mean != null) {
 		const ml = v.loss_mean,
 			all = v.all_losses_mean ?? 0;
 		if (ml >= 0)
-			s += ` Even when you lose to them, you still gain ${abs3(ml)} rating on average: DUPR expects you to lose those matches, so a close score is enough to raise your rating.`;
-		else
-			s +=
-				` When you lose to them, you lose ${abs3(ml)} rating on average` +
-				(Math.abs(ml) < Math.abs(all) ? `, less than an average loss (${abs3(all)})` : '') +
-				': DUPR expects those losses, so they cost little, and a close score can even turn one into a small gain.';
+			s += ` Even your losses to them gain you ${abs3(ml)} on average: DUPR expects you to lose, so a close score is enough to raise your rating.`;
+		else if (Math.abs(ml) < Math.abs(all))
+			s += ` Those losses cost only ${abs3(ml)} on average, against ${abs3(all)} for a typical loss: DUPR expects them, and a close score can even turn one into a small gain.`;
+		else s += ` Those losses cost ${abs3(ml)} on average.`;
 	}
 	return s;
 }
@@ -349,6 +344,7 @@ export const en = {
 			partners: 'Partners & games',
 			games: 'Games',
 			matches: 'Matches',
+			tournaments: 'Tournaments',
 			details: 'All stats'
 		},
 		ratingLabel: 'DUPR rating',
@@ -382,6 +378,7 @@ export const en = {
 		vs: 'vs',
 		allNumbers: 'All numbers',
 		perMonth: '/mo',
+		halves: { then: 'Then', now: 'Now', matches: 'Matches', won: 'Matches won', points: 'Points won', opp: 'Opponents’ rating' },
 		findingTitles: {
 			rating_change: 'Rating',
 			trend: 'Trend',
@@ -415,6 +412,9 @@ export const en = {
 		gains: 'Biggest rating gains',
 		losses: 'Biggest rating losses',
 		gameDetails: 'Game details',
+		tourSummary: 'Summary',
+		tournaments: 'Your tournaments',
+		vsOther: 'Tournaments vs other matches',
 		allMatches: 'All matches (most recent first)'
 	},
 
@@ -506,12 +506,21 @@ export const en = {
 	groups: ['Much weaker', 'Weaker', 'Similar', 'Stronger', 'Much stronger'],
 	groupRanges: ['0.3+ below', '0.1–0.3 below', '±0.1', '0.1–0.3 above', '0.3+ above'],
 	rest: {
-		same_day: 'Same day as previous match',
-		'1_3': '1–3 days after previous match',
-		'4_7': '4–7 days after previous match',
-		'8_14': '8–14 days after previous match',
-		'15_plus': '15+ days after previous match'
+		same_day: 'Same day',
+		'1_3': '1–3 days',
+		'4_7': '4–7 days',
+		'8_14': '8–14 days',
+		'15_plus': '15+ days'
 	} as Record<RestKey, string>,
+	context: { tournament: 'Tournaments', other: 'Other matches' } as Record<'tournament' | 'other', string>,
+	tournamentsIntro: (n: number, t: Agg | undefined, o: Agg | undefined) =>
+		`${n} tournament${n > 1 ? 's' : ''} found in your matches.` +
+		(t && o
+			? ` In tournaments you win ${pct(t.win_pct)} of matches (${t.matches}), against ${pct(o.win_pct)} elsewhere (${o.matches}); ` +
+				`your rating moved ${signed(t.rating_gained)} in tournaments and ${signed(o.rating_gained)} in other matches.`
+			: ''),
+	tournamentsNote:
+		'DUPR does not send tournament names. They are read from the event name of your matches, so some tournaments may be missing from this list.',
 	sources: {
 		CLUB: 'Club',
 		PARTNER: 'Partner',
@@ -545,6 +554,8 @@ export const en = {
 		expWin: 'Expected win %',
 		avgChange: 'Avg rating change',
 		totalChange: 'Total rating change',
+		tournament: 'Tournament',
+		record: 'W\u2060–\u2060L', // word joiners: never break at the dash
 		w: 'W',
 		l: 'L'
 	}

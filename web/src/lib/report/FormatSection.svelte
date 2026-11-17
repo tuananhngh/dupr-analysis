@@ -2,7 +2,7 @@
 	// One format (doubles or singles): hero, highlights, then the details in tabs.
 	import { m } from './messages.ts';
 	import { date, isNum, monthYear, num, pct, periodLabel, rating, signed } from './format.ts';
-	import type { Agg, FormatData, Match } from './types.ts';
+	import type { Agg, FormatData, Match, Tournament } from './types.ts';
 	import ChartCard from './ChartCard.svelte';
 	import DataTable, { type Column } from './DataTable.svelte';
 	import Tips from './Tips.svelte';
@@ -71,22 +71,39 @@
 		const cols: Column<Match>[] = [
 			{ label: M.col.date, value: (r) => date(r.date) },
 			{ label: M.col.result, value: (r) => result(r.won) },
-			{ label: M.col.score, value: (r) => r.game_scores }
+			{ label: M.col.score, value: (r) => r.game_scores, wrap: true }
 		];
-		if (doubles) cols.push({ label: M.col.partner, value: (r) => r.partner ?? '–' });
+		if (doubles) cols.push({ label: M.col.partner, value: (r) => r.partner ?? '–', wrap: true });
 		cols.push({ label: M.col.oppRating, value: (r) => rating(r.opp_rating_avg), num: true });
 		cols.push({ label: M.col.ratingChange, value: (r) => signed(r.rating_impact), num: true });
 		return cols;
 	};
 	const periodsRows = $derived([...d.periods].reverse());
+	const tours = $derived(d.tournaments ?? []);
+	const ctx = $derived(d.by_context ?? []);
+	const tourCols = (): Column<Tournament>[] => {
+		const cols: Column<Tournament>[] = [
+			{ label: M.col.date, value: (r) => date(r.date) },
+			{ label: M.col.tournament, value: (r) => r.tournament, wrap: true }
+		];
+		if (doubles) cols.push({ label: M.col.partner, value: (r) => r.partner ?? '–', wrap: true });
+		cols.push(
+			{ label: M.col.record, value: (r) => `${r.wins}–${r.losses}`, num: true },
+			{ label: M.col.pointWin, value: (r) => pct(r.point_share), num: true },
+			{ label: M.col.avgOppRating, value: (r) => rating(r.avg_opp_rating), num: true },
+			{ label: M.col.ratingChange, value: (r) => signed(r.rating_gained), num: true }
+		);
+		return cols;
+	};
 
-	type TabId = 'overview' | 'form' | 'opponents' | 'partners' | 'matches' | 'details';
+	type TabId = 'overview' | 'form' | 'opponents' | 'partners' | 'matches' | 'tournaments' | 'details';
 	const tabs = $derived.by(() => {
 		const t: { id: TabId; label: string }[] = [
 			{ id: 'overview', label: M.ui.tabs.overview },
 			{ id: 'form', label: M.ui.tabs.form },
 			{ id: 'matches', label: M.ui.tabs.matches }
 		];
+		if (tours.length) t.push({ id: 'tournaments', label: M.ui.tabs.tournaments });
 		if (hasOppGroups || d.opponents.length) t.push({ id: 'opponents', label: M.ui.tabs.opponents });
 		t.push({ id: 'partners', label: doubles ? M.ui.tabs.partners : M.ui.tabs.games });
 		t.push({ id: 'details', label: M.ui.tabs.details });
@@ -148,16 +165,37 @@
 		<div class="panel">
 			<h3 class="ptitle">{M.ui.tabs.matches}</h3>
 			<MatchFeed matches={d.matches} {doubles} />
-			<div class="grid2">
-				<div>
-					<h3>{M.h.gains}</h3>
-					<DataTable rows={d.best} columns={matchCols()} />
-				</div>
-				<div>
-					<h3>{M.h.losses}</h3>
-					<DataTable rows={d.worst} columns={matchCols()} />
-				</div>
-			</div>
+			<h3>{M.h.gains}</h3>
+			<DataTable rows={d.best} columns={matchCols()} />
+			<h3>{M.h.losses}</h3>
+			<DataTable rows={d.worst} columns={matchCols()} />
+		</div>
+	{/if}
+
+	{#if show('tournaments') && tours.length}
+		<div class="panel">
+			<h3 class="ptitle">{M.ui.tabs.tournaments}</h3>
+			<h3>{M.h.tourSummary}</h3>
+			<p class="takeaway">
+				{M.tournamentsIntro(
+					tours.length,
+					ctx.find((r) => r.context === 'tournament'),
+					ctx.find((r) => r.context === 'other')
+				)}
+			</p>
+			<p class="note">{M.tournamentsNote}</p>
+			<h3>{M.h.tournaments}</h3>
+			<DataTable rows={tours} limit={50} columns={tourCols()} />
+			{#if ctx.length}
+				<h3>{M.h.vsOther}</h3>
+				<DataTable
+					rows={ctx}
+					columns={[
+						{ label: '', value: (r) => M.context[r.context] },
+						...(aggCols() as Column<(typeof ctx)[number]>[])
+					]}
+				/>
+			{/if}
 		</div>
 	{/if}
 
@@ -165,6 +203,7 @@
 		<div class="panel">
 			<h3 class="ptitle">{M.ui.tabs.opponents}</h3>
 			{#if hasOppGroups}
+				<h3>{M.h.opponents}</h3>
 				<p class="takeaway">{M.opponentVerdict(opp.verdict)}</p>
 				<ChartCard title={M.charts.oppResults} caption={M.charts.oppResultsCap}><OppResultsChart {d} /></ChartCard>
 				{#if opp.measure === 'rating_impact'}
@@ -176,7 +215,7 @@
 				<DataTable
 					rows={opp.groups}
 					columns={[
-						{ label: M.col.opponents, value: (r) => `${M.groups[r.group]} (${M.groupRanges[r.group]})` },
+						{ label: M.col.opponents, value: (r) => `${M.groups[r.group]} (${M.groupRanges[r.group]})`, wrap: true },
 						{ label: M.col.matches, value: (r) => r.matches, num: true },
 						{ label: M.col.winPct, value: (r) => pct(r.win_pct), num: true },
 						{ label: M.col.expWin, value: (r) => pct(r.exp_win_pct), num: true },
@@ -191,7 +230,7 @@
 				rows={d.opponents}
 				limit={15}
 				columns={[
-					{ label: M.col.opponent, value: (r) => r.opponent },
+					{ label: M.col.opponent, value: (r) => r.opponent, wrap: true },
 					{ label: M.col.matches, value: (r) => r.matches, num: true },
 					{ label: M.col.wins, value: (r) => r.wins, num: true },
 					{ label: M.col.winPct, value: (r) => pct(r.win_pct), num: true },
@@ -213,7 +252,7 @@
 					rows={d.partners}
 					limit={15}
 					columns={[
-						{ label: M.col.partner, value: (r) => r.partner },
+						{ label: M.col.partner, value: (r) => r.partner, wrap: true },
 						...(aggCols() as Column<(typeof d.partners)[number]>[]),
 						{ label: M.col.partnerRating, value: (r) => rating(r.partner_rating), num: true }
 					]}
@@ -222,6 +261,7 @@
 			{#if d.margins.length}
 				<ChartCard title={M.charts.margins} caption={M.charts.marginsCap}><MarginsChart {d} /></ChartCard>
 			{/if}
+			<h3>{M.h.gameDetails}</h3>
 			<p class="takeaway">{M.gameDetails(c)}</p>
 		</div>
 	{/if}
@@ -244,28 +284,22 @@
 					{ label: M.col.ratingEnd, value: (r) => rating(r.rating_end), num: true }
 				]}
 			/>
-			<div class="grid2">
-				<div>
-					<h3>{M.h.bySource}</h3>
-					<DataTable
-						rows={d.by_source}
-						columns={[
-							{ label: M.col.source, value: (r) => M.sources[r.source] ?? r.source },
-							...(aggCols() as Column<(typeof d.by_source)[number]>[])
-						]}
-					/>
-				</div>
-				<div>
-					<h3>{M.h.byRest}</h3>
-					<DataTable
-						rows={d.by_rest}
-						columns={[
-							{ label: M.col.rest, value: (r) => M.rest[r.rest] ?? r.rest },
-							...(aggCols() as Column<(typeof d.by_rest)[number]>[])
-						]}
-					/>
-				</div>
-			</div>
+			<h3>{M.h.bySource}</h3>
+			<DataTable
+				rows={d.by_source}
+				columns={[
+					{ label: M.col.source, value: (r) => M.sources[r.source] ?? r.source },
+					...(aggCols() as Column<(typeof d.by_source)[number]>[])
+				]}
+			/>
+			<h3>{M.h.byRest}</h3>
+			<DataTable
+				rows={d.by_rest}
+				columns={[
+					{ label: M.col.rest, value: (r) => M.rest[r.rest] ?? r.rest },
+					...(aggCols() as Column<(typeof d.by_rest)[number]>[])
+				]}
+			/>
 		</div>
 	{/if}
 </section>
@@ -335,13 +369,12 @@
 		font-weight: 650;
 	}
 	.takeaway {
-		max-width: 900px;
-		margin: 16px 0 8px;
+		margin: 0 0 16px;
 	}
-	.grid2 {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
-		gap: 4px 16px;
+	.note {
+		margin: -8px 0 0;
+		font-size: 13px;
+		color: var(--ink2);
 	}
 	@media (max-width: 640px) {
 		.tabs {
