@@ -283,7 +283,7 @@ function opponentVerdict(v: Verdict): string {
 }
 
 export const fr: Messages = {
-	reportTitle: 'Rapport de performance DUPR',
+	reportTitle: 'PickleStats',
 	generated: (player, when) => `${player} · créé le ${when}`,
 	noMatches: 'Aucun match trouvé.',
 	formatName: { DOUBLES: 'Double', SINGLES: 'Simple' },
@@ -447,18 +447,18 @@ export const fr: Messages = {
 		ratingAxis: 'Note DUPR',
 		ranges: { '3m': '3 mois', '6m': '6 mois', '1y': '1 an', all: 'Tout' },
 		ratingCap:
-			'La ligne bleue est votre note DUPR ; chaque point est un match (bleu = victoire, orange = défaite). La ligne pointillée montre votre progression moyenne. Utilisez les boutons pour zoomer sur les derniers mois.',
+			'La ligne bleu-vert est votre note DUPR ; chaque point est un match (bleu-vert = victoire, orange = défaite). La ligne pointillée montre votre progression moyenne. Utilisez les boutons pour zoomer sur les derniers mois.',
 		monthly: 'Variation de note par mois (mois joués)',
 		matchesN: (n) => `${n} match${n > 1 ? 's' : ''}`,
 		winsOf: (w, n) => `${w} victoires sur ${n} matchs`,
 		ratingEnd: (v) => `note en fin de mois ${v}`,
 		monthlyCap:
-			'De combien votre note a monté (bleu) ou baissé (orange) chaque mois où vous avez joué, avec le nombre de matchs. Les mois sans match sont omis. Vos meilleurs et pires matchs sont dans les tableaux plus bas.',
+			'De combien votre note a monté (bleu-vert) ou baissé (orange) chaque mois où vous avez joué, avec le nombre de matchs. Les mois sans match sont omis. Vos meilleurs et pires matchs sont dans les tableaux plus bas.',
 		winForm: '% de victoires : réel vs prévu',
 		yourWin: (w) => `Votre % de victoires (${w} derniers)`,
 		expectedWin: '% de victoires attendu',
 		winFormCap: (w) =>
-			`Bleu = votre part de victoires sur vos ${w} derniers matchs. Orange = la part que prévoient les notes. Bleu au-dessus de l’orange : vous jouez au-dessus de votre note.`,
+			`Bleu-vert = votre part de victoires sur vos ${w} derniers matchs. Orange = la part que prévoient les notes. Bleu-vert au-dessus de l’orange : vous jouez au-dessus de votre note.`,
 		points: 'Points gagnés par mois : réel vs attendu',
 		you: 'Vous',
 		expected: 'Attendu',
@@ -466,13 +466,13 @@ export const fr: Messages = {
 		below: 'En dessous',
 		pointsTip: (v, gap) => `${v} des points gagnés (${gap} vs attendu)`,
 		ratingThatMonth: (v) => `note ce mois-là ${v}`,
-		pointsCap: 'Point = points que vous avez gagnés, tiret = ce que prévoient les notes. Bleu = au-dessus, orange = en dessous.',
+		pointsCap: 'Point = points que vous avez gagnés, tiret = ce que prévoient les notes. Bleu-vert = au-dessus, orange = en dessous.',
 		pointsHits: (h) =>
-			` Les mois bleus ont fait monter votre note ${h.up} fois sur ${h.above} ; les mois orange l’ont fait baisser ${h.down} fois sur ${h.below}.`,
+			` Les mois bleu-vert ont fait monter votre note ${h.up} fois sur ${h.above} ; les mois orange l’ont fait baisser ${h.down} fois sur ${h.below}.`,
 		oppResults: '% de victoires selon la force des adversaires : réel vs attendu',
 		oppAxis: 'Note moyenne des adversaires par rapport à la vôtre',
 		oppResultsCap:
-			'Chaque groupe correspond à des adversaires plus faibles, de même niveau ou plus forts que vous (leur note moyenne moins la vôtre). Une barre bleue au-dessus de la ligne orange : vous faites mieux que prévu contre ce niveau.',
+			'Chaque groupe correspond à des adversaires plus faibles, de même niveau ou plus forts que vous (leur note moyenne moins la vôtre). Une barre bleu-vert au-dessus de la ligne orange : vous faites mieux que prévu contre ce niveau.',
 		oppChange: 'Note gagnée par match, selon la force des adversaires',
 		perMatch: 'de note par match',
 		pointWinShort: (v) => `points gagnés ${v}`,
@@ -483,7 +483,7 @@ export const fr: Messages = {
 		oppLevel: (w) => `Niveau des adversaires (moyenne des ${w} derniers)`,
 		yourRating: 'Votre note',
 		oppTimeCap:
-			'Orange au-dessus du bleu : vous jouez surtout contre des adversaires mieux notés que vous. Jouer régulièrement contre plus fort en restant proche au score est l’un des moyens les plus rapides de faire monter votre note.',
+			'Orange au-dessus du bleu-vert : vous jouez surtout contre des adversaires mieux notés que vous. Jouer régulièrement contre plus fort en restant proche au score est l’un des moyens les plus rapides de faire monter votre note.',
 		periods: (p) => `% de victoires et de points gagnés ${par(p)}`,
 		winPct: '% de victoires',
 		pointWinPct: '% de points gagnés',
@@ -491,7 +491,7 @@ export const fr: Messages = {
 		activity: (p) => `Matchs joués ${par(p)}`,
 		matches: 'Matchs',
 		activityCap: (p) => `Combien vous avez joué ${par(p)}.`,
-		margins: 'Comment se terminent vos jeux (bleu = gagnés, orange = perdus)',
+		margins: 'Comment se terminent vos jeux (bleu-vert = gagnés, orange = perdus)',
 		marginAxis: 'Écart de score dans le jeu (vos points − les leurs)',
 		marginTip: (m, n) => `gagnés/perdus de ${m} : ${n} jeux`,
 		marginsCap:

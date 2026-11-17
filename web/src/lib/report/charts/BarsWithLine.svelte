@@ -1,12 +1,12 @@
 <script lang="ts" generics="T extends object">
-	// Blue columns (a share in %) with an orange line + dots on the same category axis. No value
+	// Teal columns (a share in %) with an orange line + dots on the same category axis. No value
 	// labels on the bars: they would collide with the line; the tooltip and the tables have them.
 	// Used for win % vs expected win % by opponent group, and win % vs point win % per period.
 	import type { Snippet } from 'svelte';
 	import { Axis, Bar, Bars, Chart, Circle, Highlight, Layer, Points, Rule, Spline, Tooltip } from 'layerchart';
 	import { scaleBand } from 'd3-scale';
 	import { pct } from '../format.ts';
-	import { BLUE, MUTED, ORANGE, PAD, SURFACE, barWidth, thinTicks } from './common.ts';
+	import { TEAL, MUTED, ORANGE, PAD, SURFACE, barWidth, thinTicks } from './common.ts';
 	import Legend from './Legend.svelte';
 
 	let {
@@ -39,7 +39,7 @@
 
 <Legend
 	items={[
-		{ label: barName, color: BLUE, kind: 'bar' },
+		{ label: barName, color: TEAL, kind: 'bar' },
 		{ label: lineName, color: ORANGE, kind: 'line' }
 	]}
 />
@@ -61,7 +61,7 @@
 				<Highlight area />
 				<Bars>
 					{#each rows as r, i (i)}
-						<Bar data={r} width={bw} radius={4} rounded="top" fill={BLUE} />
+						<Bar data={r} width={bw} radius={4} rounded="top" fill={TEAL} />
 					{/each}
 				</Bars>
 				{#if rule50}<Rule y={50} stroke={MUTED} dashArray="2 3" />{/if}

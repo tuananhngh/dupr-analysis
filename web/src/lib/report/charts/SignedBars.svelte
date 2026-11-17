@@ -1,5 +1,5 @@
 <script lang="ts" generics="T extends object">
-	// Columns on a category axis, blue when the value is >= 0 and orange below, with a zero line.
+	// Columns on a category axis, teal when the value is >= 0 and orange below, with a zero line.
 	// Used for the rating change per month and per opponent group.
 	import type { Snippet } from 'svelte';
 	import { Axis, Bar, Bars, Chart, Highlight, Labels, Layer, Rule, Tooltip } from 'layerchart';

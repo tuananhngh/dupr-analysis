@@ -30,22 +30,27 @@
 		--ink: #0b0b0b;
 		--ink2: #52514e;
 		--line: #e6e5e0;
-		--accent: #2a78d6;
-		--accent-soft: #e3edfa;
+		--accent: #0b7a7c;
+		--accent-soft: #e0f1f0;
 		--err: #b42318;
 		--muted: #8a8984;
 		--faint: #c9c8c2;
-		/* The report's two data colors: blue = win / above expectation, orange = loss / below. */
-		--blue: #2a78d6;
+		/* The report's two data colors: teal = win / above expectation, orange = loss / below.
+		   Small text in the win color uses --accent (darker teal) for contrast. */
+		--teal: #13958f;
+		--teal-soft: #e0f1f0;
 		--orange: #eb6834;
 		/* LayerChart theme: text and axes, label halo and tooltip background, default mark color.
 		   On :root because LayerChart moves tooltips to <body>. */
 		--color-surface-content: var(--ink2);
 		--color-surface-100: var(--surface);
-		--color-primary: var(--blue);
+		--color-primary: var(--teal);
 	}
 	:global(*) {
 		box-sizing: border-box;
+	}
+	:global(a) {
+		color: var(--accent);
 	}
 	:global(body) {
 		-webkit-font-smoothing: antialiased;

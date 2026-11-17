@@ -75,7 +75,7 @@
 		background: var(--orange);
 	}
 	.res.won {
-		background: var(--blue);
+		background: var(--teal);
 	}
 	.main {
 		min-width: 0;
@@ -102,7 +102,7 @@
 		color: var(--ink2);
 	}
 	.chg.up {
-		color: var(--blue);
+		color: var(--accent);
 	}
 	.chg.down {
 		color: var(--orange);

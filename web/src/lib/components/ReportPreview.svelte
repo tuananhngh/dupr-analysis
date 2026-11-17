@@ -88,8 +88,8 @@
 		font-weight: 650;
 		border-radius: 999px;
 		padding: 2px 10px;
-		background: var(--accent-soft);
-		color: var(--blue);
+		background: var(--teal-soft);
+		color: var(--accent);
 	}
 	svg {
 		width: 100%;
@@ -97,12 +97,12 @@
 	}
 	.line {
 		fill: none;
-		stroke: var(--blue);
+		stroke: var(--teal);
 		stroke-width: 2;
 		vector-effect: non-scaling-stroke;
 	}
 	.area {
-		fill: var(--accent-soft);
+		fill: var(--teal-soft);
 	}
 	.dots {
 		display: flex;
@@ -117,7 +117,7 @@
 		background: var(--orange);
 	}
 	.dots span.won {
-		background: var(--blue);
+		background: var(--teal);
 	}
 	.cards {
 		display: grid;
@@ -126,7 +126,7 @@
 	}
 	.card {
 		border: 1px solid var(--line);
-		border-top: 3px solid var(--blue);
+		border-top: 3px solid var(--teal);
 		border-radius: 10px;
 		padding: 10px 12px;
 	}

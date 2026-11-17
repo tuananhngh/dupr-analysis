@@ -1,13 +1,13 @@
 // Shared bits for the report charts. Colors are CSS variables set on :root (+layout.svelte),
 // because LayerChart moves tooltips to <body>, outside any wrapper element.
-export const BLUE = 'var(--blue)';
+export const TEAL = 'var(--teal)';
 export const ORANGE = 'var(--orange)';
 export const MUTED = 'var(--muted)';
 export const FAINT = 'var(--faint)';
 export const SURFACE = 'var(--surface)';
 
-/** Win / above expectation = blue, loss / below = orange (the report's two-color convention). */
-export const signColor = (positive: boolean) => (positive ? BLUE : ORANGE);
+/** Win / above expectation = teal, loss / below = orange (the report's two-color convention). */
+export const signColor = (positive: boolean) => (positive ? TEAL : ORANGE);
 
 export const toDate = (iso: string) => new Date(iso.length === 10 ? iso + 'T00:00:00' : iso);
 

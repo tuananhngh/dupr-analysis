@@ -45,7 +45,7 @@ const en = {
 		"You log in on DUPR's own site: your password never goes through this page. Your data stays in your browser. It is never uploaded anywhere. Works on a computer (Chrome, Edge, Firefox, Safari).",
 	dragAlert:
 		'Drag this button to your bookmarks bar, then click it while you are on dashboard.dupr.com.',
-	reportTitle: 'DUPR performance report',
+	reportTitle: 'PickleStats',
 	print: 'Print / save as PDF',
 	back: 'Back',
 	building: 'Building your report…',
@@ -104,7 +104,7 @@ const fr: typeof en = {
 		'Vous vous connectez sur le site de DUPR : votre mot de passe ne passe jamais par cette page. Vos données restent dans votre navigateur et ne sont jamais envoyées ailleurs. Fonctionne sur ordinateur (Chrome, Edge, Firefox, Safari).',
 	dragAlert:
 		'Faites glisser ce bouton dans votre barre de favoris, puis cliquez dessus quand vous êtes sur dashboard.dupr.com.',
-	reportTitle: 'Rapport de performance DUPR',
+	reportTitle: 'PickleStats',
 	print: 'Imprimer / PDF',
 	back: 'Retour',
 	building: 'Création de votre rapport…',

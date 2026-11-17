@@ -5,7 +5,7 @@
 	import { m } from '../messages.ts';
 	import { pct, signed } from '../format.ts';
 	import type { FormatData } from '../types.ts';
-	import { BLUE, MUTED, PAD, barWidth } from './common.ts';
+	import { TEAL, MUTED, PAD, barWidth } from './common.ts';
 
 	let { d }: { d: FormatData } = $props();
 	const rows = $derived(
@@ -31,7 +31,7 @@
 			<Layer type="svg">
 				<Axis placement="bottom" grid format={(v: number) => pct(v)} ticks={[0, 25, 50, 75, 100]} />
 				<Axis placement="left" />
-				<Bars height={barWidth(context.yScale.bandwidth?.())} radius={4} rounded="right" fill={BLUE} />
+				<Bars height={barWidth(context.yScale.bandwidth?.())} radius={4} rounded="right" fill={TEAL} />
 				<Rule x={50} stroke={MUTED} dashArray="2 3" />
 				<Labels format={(v: number) => pct(v)} class="lbl" />
 			</Layer>

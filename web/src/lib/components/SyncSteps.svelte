@@ -77,7 +77,7 @@
 		font-weight: 600;
 		text-decoration: none;
 		cursor: grab;
-		box-shadow: 0 2px 6px rgb(42 120 214 / 0.3);
+		box-shadow: 0 2px 6px rgb(11 122 124 / 0.3);
 	}
 	.privacy {
 		margin: 16px 0 0;

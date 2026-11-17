@@ -286,7 +286,7 @@ function opponentVerdict(v: Verdict): string {
 }
 
 export const en = {
-	reportTitle: 'DUPR performance report',
+	reportTitle: 'PickleStats',
 	generated: (player: string, when: string) => `${player} · generated ${when}`,
 	noMatches: 'No matches found.',
 	formatName: { DOUBLES: 'Doubles', SINGLES: 'Singles' } as Record<string, string>,
@@ -450,18 +450,18 @@ export const en = {
 		ratingAxis: 'DUPR rating',
 		ranges: { '3m': '3 months', '6m': '6 months', '1y': '1 year', all: 'All' },
 		ratingCap:
-			'The blue line is your DUPR rating; each dot is a match (blue = win, orange = loss). The dashed line is your average progress. Use the buttons to zoom on the last months.',
+			'The teal line is your DUPR rating; each dot is a match (teal = win, orange = loss). The dashed line is your average progress. Use the buttons to zoom on the last months.',
 		monthly: 'Rating change per month (months you played)',
 		matchesN: (n: number) => `${n} match${n > 1 ? 'es' : ''}`,
 		winsOf: (w: number, n: number) => `${w} wins of ${n} matches`,
 		ratingEnd: (v: string) => `rating at month end ${v}`,
 		monthlyCap:
-			'How much your rating went up (blue) or down (orange) over each month you played, with the number of matches. Months without matches are skipped. Your single best and worst matches are listed in the tables below.',
+			'How much your rating went up (teal) or down (orange) over each month you played, with the number of matches. Months without matches are skipped. Your single best and worst matches are listed in the tables below.',
 		winForm: 'Win %: actual vs predicted',
 		yourWin: (w: number) => `Your win % (last ${w})`,
 		expectedWin: 'Expected win %',
 		winFormCap: (w: number) =>
-			`Blue = how often you won over your last ${w} matches. Orange = how often the ratings say you should win. Blue above orange: you are playing above your rating.`,
+			`Teal = how often you won over your last ${w} matches. Orange = how often the ratings say you should win. Teal above orange: you are playing above your rating.`,
 		points: 'Points won per month: actual vs expected',
 		you: 'You',
 		expected: 'Expected',
@@ -469,13 +469,13 @@ export const en = {
 		below: 'Below',
 		pointsTip: (v: string, gap: string) => `won ${v} of points (${gap} vs expected)`,
 		ratingThatMonth: (v: string) => `rating that month ${v}`,
-		pointsCap: 'Dot = points you won, dash = what the ratings predict. Blue = above, orange = below.',
+		pointsCap: 'Dot = points you won, dash = what the ratings predict. Teal = above, orange = below.',
 		pointsHits: (h: { up: number; above: number; down: number; below: number }) =>
-			` Blue months raised your rating ${h.up} times out of ${h.above}; orange months lowered it ${h.down} times out of ${h.below}.`,
+			` Teal months raised your rating ${h.up} times out of ${h.above}; orange months lowered it ${h.down} times out of ${h.below}.`,
 		oppResults: 'Win % by opponent strength: actual vs expected',
 		oppAxis: "Opponents' average rating compared with yours",
 		oppResultsCap:
-			'Each group is opponents weaker, similar or stronger than you (their average rating minus yours). Blue bars above the orange line mean you beat the odds against that level.',
+			'Each group is opponents weaker, similar or stronger than you (their average rating minus yours). Teal bars above the orange line mean you beat the odds against that level.',
 		oppChange: 'Rating gained per match, by opponent strength',
 		perMatch: 'rating per match',
 		pointWinShort: (v: string) => `point win ${v}`,
@@ -486,7 +486,7 @@ export const en = {
 		oppLevel: (w: number) => `Opponents' level (avg of last ${w})`,
 		yourRating: 'Your rating',
 		oppTimeCap:
-			'Orange above blue means you mostly play opponents rated higher than you (playing up). Playing up regularly while keeping scores close is one of the fastest ways to raise your rating.',
+			'Orange above teal means you mostly play opponents rated higher than you (playing up). Playing up regularly while keeping scores close is one of the fastest ways to raise your rating.',
 		periods: (p: Period) => `Win % and point win % per ${periodWord[p]}`,
 		winPct: 'Win %',
 		pointWinPct: 'Point win %',
@@ -494,7 +494,7 @@ export const en = {
 		activity: (p: Period) => `Matches played per ${periodWord[p]}`,
 		matches: 'Matches',
 		activityCap: (p: Period) => `How much you played each ${periodWord[p]}.`,
-		margins: 'How your games end (blue = won, orange = lost)',
+		margins: 'How your games end (teal = won, orange = lost)',
 		marginAxis: 'Score difference in the game (your points − theirs)',
 		marginTip: (m: string, n: number) => `won/lost by ${m}: ${n} games`,
 		marginsCap:

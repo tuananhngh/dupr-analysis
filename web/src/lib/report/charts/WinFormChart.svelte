@@ -5,7 +5,7 @@
 	import { m } from '../messages.ts';
 	import { date, pct, timeTicks } from '../format.ts';
 	import type { FormatData } from '../types.ts';
-	import { BLUE, MUTED, ORANGE, PAD, toDate } from './common.ts';
+	import { TEAL, MUTED, ORANGE, PAD, toDate } from './common.ts';
 	import Legend from './Legend.svelte';
 
 	let { d }: { d: FormatData } = $props();
@@ -15,7 +15,7 @@
 	const expected = $derived(rows.filter((r) => r.expected != null));
 	const now = $derived(actual.length ? [actual[actual.length - 1]] : []);
 	const legend = $derived([
-		{ label: m().charts.yourWin(w), color: BLUE, kind: 'line' as const },
+		{ label: m().charts.yourWin(w), color: TEAL, kind: 'line' as const },
 		...(expected.length ? [{ label: m().charts.expectedWin, color: ORANGE, kind: 'dash' as const }] : [])
 	]);
 </script>
@@ -38,7 +38,7 @@
 			{#if expected.length}
 				<Spline data={expected} y="expected" stroke={ORANGE} stroke-dasharray="4 3" strokeWidth={2} />
 			{/if}
-			<Spline data={actual} y="actual" stroke={BLUE} strokeWidth={2} />
+			<Spline data={actual} y="actual" stroke={TEAL} strokeWidth={2} />
 			{#each now as n (n.day)}
 				<Text data={[n]} x="day" y="actual" value={`${m().charts.now} ${pct(n.actual)}`} dy={-12} textAnchor="end" class="annot" />
 			{/each}
@@ -48,7 +48,7 @@
 			{#snippet children({ data })}
 				<Tooltip.Header value={date(data.day)} />
 				<Tooltip.List>
-					<Tooltip.Item label={m().charts.yourWin(w)} value={pct(data.actual)} color={BLUE} />
+					<Tooltip.Item label={m().charts.yourWin(w)} value={pct(data.actual)} color={TEAL} />
 					<Tooltip.Item label={m().charts.expectedWin} value={pct(data.expected)} color={ORANGE} />
 				</Tooltip.List>
 			{/snippet}

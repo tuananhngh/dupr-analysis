@@ -1,5 +1,5 @@
 <script lang="ts">
-	// How games end: number of games for each score difference (blue = won, orange = lost).
+	// How games end: number of games for each score difference (teal = won, orange = lost).
 	import { Axis, Bar, Bars, Chart, Highlight, Layer, Tooltip } from 'layerchart';
 	import { scaleBand } from 'd3-scale';
 	import { m } from '../messages.ts';

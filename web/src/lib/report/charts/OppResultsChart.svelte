@@ -4,7 +4,7 @@
 	import { m } from '../messages.ts';
 	import { pct } from '../format.ts';
 	import type { FormatData, Group } from '../types.ts';
-	import { BLUE, ORANGE } from './common.ts';
+	import { TEAL, ORANGE } from './common.ts';
 	import BarsWithLine from './BarsWithLine.svelte';
 
 	let { d }: { d: FormatData } = $props();
@@ -23,7 +23,7 @@
 	{#snippet tooltip(g: Group)}
 		<Tooltip.Header value={`${m().groups[g.group]} (${m().groupRanges[g.group]})`} />
 		<Tooltip.List>
-			<Tooltip.Item label={m().charts.winPct} value={pct(g.win_pct)} color={BLUE} />
+			<Tooltip.Item label={m().charts.winPct} value={pct(g.win_pct)} color={TEAL} />
 			<Tooltip.Item label={m().charts.expectedWin} value={pct(g.exp_win_pct)} color={ORANGE} />
 			<Tooltip.Item label={m().col.pointWin} value={pct(g.point_share, 1)} />
 			<Tooltip.Item label={m().col.matches} value={g.matches} />

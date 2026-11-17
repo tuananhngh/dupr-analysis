@@ -1,12 +1,12 @@
 <script lang="ts">
 	// Per month: points won (dot) vs what the ratings predict (dash), joined by a segment that is
-	// blue when above the expectation and orange when below.
+	// teal when above the expectation and orange when below.
 	import { Axis, Chart, Circle, Highlight, Layer, Line, Rule, Text, Tooltip } from 'layerchart';
 	import { scaleBand } from 'd3-scale';
 	import { m } from '../messages.ts';
 	import { monthShort, monthYear, pct, signed } from '../format.ts';
 	import type { FormatData } from '../types.ts';
-	import { BLUE, MUTED, ORANGE, PAD, SURFACE, signColor, thinTicks } from './common.ts';
+	import { TEAL, MUTED, ORANGE, PAD, SURFACE, signColor, thinTicks } from './common.ts';
 	import Legend from './Legend.svelte';
 
 	let { d }: { d: FormatData } = $props();
@@ -14,7 +14,7 @@
 	const showLabels = $derived(rows.length <= 14);
 	const legend = $derived([
 		{ label: m().charts.expected, color: 'var(--ink2)', kind: 'line' as const },
-		{ label: m().charts.above, color: BLUE, kind: 'dot' as const },
+		{ label: m().charts.above, color: TEAL, kind: 'dot' as const },
 		{ label: m().charts.below, color: ORANGE, kind: 'dot' as const }
 	]);
 </script>

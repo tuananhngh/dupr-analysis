@@ -110,7 +110,7 @@
 		font-variant-numeric: tabular-nums;
 	}
 	.w {
-		color: var(--blue);
+		color: var(--teal);
 	}
 	.l {
 		color: var(--orange);
@@ -129,8 +129,8 @@
 		font-variant-numeric: tabular-nums;
 	}
 	.pill.up {
-		background: var(--accent-soft);
-		color: var(--blue);
+		background: var(--teal-soft);
+		color: var(--accent);
 	}
 	.pill.down {
 		background: #fde9e0;
@@ -149,13 +149,13 @@
 	}
 	.line {
 		fill: none;
-		stroke: var(--blue);
+		stroke: var(--teal);
 		stroke-width: 2;
 		vector-effect: non-scaling-stroke;
 		stroke-linejoin: round;
 	}
 	.area {
-		fill: var(--accent-soft);
+		fill: var(--teal-soft);
 	}
 	.dots {
 		display: flex;
@@ -175,7 +175,7 @@
 		cursor: default;
 	}
 	.dot.won {
-		background: var(--blue);
+		background: var(--teal);
 	}
 	@media (max-width: 820px) {
 		.hero {

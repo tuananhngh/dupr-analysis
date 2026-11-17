@@ -58,7 +58,7 @@
 		border-left-color: var(--orange);
 	}
 	.tip.strength {
-		border-left-color: var(--blue);
+		border-left-color: var(--teal);
 	}
 	.badge {
 		font-size: 12px;

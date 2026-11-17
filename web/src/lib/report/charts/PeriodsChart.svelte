@@ -4,7 +4,7 @@
 	import { m } from '../messages.ts';
 	import { pct, periodLabel } from '../format.ts';
 	import type { FormatData } from '../types.ts';
-	import { BLUE, ORANGE } from './common.ts';
+	import { TEAL, ORANGE } from './common.ts';
 	import BarsWithLine from './BarsWithLine.svelte';
 
 	let { d }: { d: FormatData } = $props();
@@ -24,7 +24,7 @@
 	{#snippet tooltip(r: Row)}
 		<Tooltip.Header value={periodLabel(r.period_end, period)} />
 		<Tooltip.List>
-			<Tooltip.Item label={m().charts.winPct} value={`${pct(r.win_pct)} (${m().charts.winsOf(r.wins, r.matches)})`} color={BLUE} />
+			<Tooltip.Item label={m().charts.winPct} value={`${pct(r.win_pct)} (${m().charts.winsOf(r.wins, r.matches)})`} color={TEAL} />
 			<Tooltip.Item label={m().charts.pointWinPct} value={pct(r.point_share, 1)} color={ORANGE} />
 		</Tooltip.List>
 	{/snippet}

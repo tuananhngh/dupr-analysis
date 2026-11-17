@@ -1,5 +1,5 @@
 <script lang="ts">
-	// DUPR rating over time: step line, one dot per match (blue win / orange loss), dashed trend,
+	// DUPR rating over time: step line, one dot per match (teal win / orange loss), dashed trend,
 	// Start / Peak / Now labels, and 3 / 6 / 12 month zoom buttons.
 	import { Axis, Chart, Circle, Highlight, Layer, Points, Spline, Text, Tooltip } from 'layerchart';
 	import { scaleTime } from 'd3-scale';
@@ -7,7 +7,7 @@
 	import { m } from '../messages.ts';
 	import { date, num, rating, signed, timeTicks } from '../format.ts';
 	import type { FormatData } from '../types.ts';
-	import { BLUE, MUTED, ORANGE, PAD, SURFACE, rangeStart, signColor, toDate } from './common.ts';
+	import { TEAL, MUTED, ORANGE, PAD, SURFACE, rangeStart, signColor, toDate } from './common.ts';
 	import Legend from './Legend.svelte';
 	import RangeButtons, { type Range } from './RangeButtons.svelte';
 
@@ -68,8 +68,8 @@
 		return out;
 	});
 	const legend = $derived([
-		{ label: m().charts.ratingLine, color: BLUE, kind: 'line' as const },
-		{ label: m().charts.win, color: BLUE, kind: 'dot' as const },
+		{ label: m().charts.ratingLine, color: TEAL, kind: 'line' as const },
+		{ label: m().charts.win, color: TEAL, kind: 'dot' as const },
 		{ label: m().charts.loss, color: ORANGE, kind: 'dot' as const },
 		...(d.trend && d.summary.trend_per_month != null
 			? [{ label: m().charts.trend(signed(d.summary.trend_per_month)), color: MUTED, kind: 'dash' as const }]
@@ -94,7 +94,7 @@
 			<Layer type="svg">
 				<Axis placement="left" grid format={(v: number) => num(v, 2)} ticks={5} />
 				<Axis placement="bottom" rule format={timeTicks(start, last)} ticks={6} />
-				<Spline data={line} curve={curveStepAfter} stroke={BLUE} strokeWidth={2} />
+				<Spline data={line} curve={curveStepAfter} stroke={TEAL} strokeWidth={2} />
 				{#if trend.length}
 					<Spline data={trend} stroke={MUTED} stroke-dasharray="5 4" strokeWidth={1.5} />
 				{/if}

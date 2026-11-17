@@ -88,7 +88,7 @@
 		break-inside: avoid;
 	}
 	.card.good {
-		border-top-color: var(--blue);
+		border-top-color: var(--teal);
 	}
 	.card.bad {
 		border-top-color: var(--orange);

@@ -6,7 +6,7 @@
 	import { m } from '../messages.ts';
 	import { date, num, rating, timeTicks } from '../format.ts';
 	import type { FormatData } from '../types.ts';
-	import { BLUE, FAINT, ORANGE, PAD, toDate } from './common.ts';
+	import { TEAL, FAINT, ORANGE, PAD, toDate } from './common.ts';
 	import Legend from './Legend.svelte';
 
 	let { d }: { d: FormatData } = $props();
@@ -24,7 +24,7 @@
 	const legend = $derived([
 		{ label: m().charts.oppEach, color: FAINT, kind: 'dot' as const },
 		{ label: m().charts.oppLevel(d.summary.rolling_window), color: ORANGE, kind: 'line' as const },
-		{ label: m().charts.yourRating, color: BLUE, kind: 'line' as const }
+		{ label: m().charts.yourRating, color: TEAL, kind: 'line' as const }
 	]);
 </script>
 
@@ -48,7 +48,7 @@
 				{/snippet}
 			</Points>
 			<Spline data={rolling} y="opp_rolling" stroke={ORANGE} strokeWidth={2} />
-			<Spline data={mine} y="rating_before" curve={curveStepAfter} stroke={BLUE} strokeWidth={2} />
+			<Spline data={mine} y="rating_before" curve={curveStepAfter} stroke={TEAL} strokeWidth={2} />
 			<Highlight lines />
 		</Layer>
 		<Tooltip.Root>
@@ -57,7 +57,7 @@
 				<Tooltip.List>
 					<Tooltip.Item label={data.opponents} value={rating(data.opp_rating_avg)} color={FAINT} />
 					<Tooltip.Item label={m().charts.oppLevel(d.summary.rolling_window)} value={rating(data.opp_rolling)} color={ORANGE} />
-					<Tooltip.Item label={m().charts.yourRating} value={rating(data.rating_before)} color={BLUE} />
+					<Tooltip.Item label={m().charts.yourRating} value={rating(data.rating_before)} color={TEAL} />
 				</Tooltip.List>
 			{/snippet}
 		</Tooltip.Root>

@@ -206,7 +206,7 @@
 		color: #fff;
 		font-weight: 600;
 		text-decoration: none;
-		box-shadow: 0 2px 8px rgb(42 120 214 / 0.35);
+		box-shadow: 0 2px 8px rgb(11 122 124 / 0.35);
 	}
 	.features {
 		margin: 56px 0;

@@ -82,7 +82,7 @@
 		--tone: var(--muted);
 	}
 	.card.good {
-		--tone: var(--blue);
+		--tone: var(--teal);
 	}
 	.card.bad {
 		--tone: var(--orange);
