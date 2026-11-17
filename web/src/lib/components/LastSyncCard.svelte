@@ -11,11 +11,20 @@
 	});
 </script>
 
-<div class="card">
-	<strong>{t('lastSync')}</strong>
-	<p>{synced}</p>
+<div class="card back">
+	<strong>{t('welcomeBack')}</strong>
+	<p class="small">{synced}</p>
 	<div class="row">
 		<button onclick={onopen}>{t('openLast')}</button>
 		<button class="link" onclick={onforget}>{t('forget')}</button>
 	</div>
 </div>
+
+<style>
+	.back {
+		border-left: 4px solid var(--accent);
+	}
+	p {
+		margin: 4px 0 12px;
+	}
+</style>

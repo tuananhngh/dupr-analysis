@@ -2,6 +2,7 @@
 	import { t } from '#lib/i18n.svelte.ts';
 	import LangSwitch from './LangSwitch.svelte';
 	import Report from '#lib/report/Report.svelte';
+	import { printReport } from '#lib/report/print.svelte.ts';
 	import type { ReportData } from '#lib/report/types.ts';
 
 	let { data, demo = false, onback }: { data: ReportData; demo?: boolean; onback: () => void } = $props();
@@ -10,7 +11,7 @@
 <div class="bar">
 	<strong>{t('reportTitle')}</strong>
 	<LangSwitch />
-	<button class="secondary" onclick={() => window.print()}>{t('print')}</button>
+	<button class="secondary" onclick={printReport}>{t('print')}</button>
 	<button class="secondary" onclick={onback}>{t('back')}</button>
 </div>
 <Report {data} {demo} />

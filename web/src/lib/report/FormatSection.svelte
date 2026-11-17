@@ -1,5 +1,5 @@
 <script lang="ts">
-	// One format (doubles or singles): same sections, in the same order, as the former Python report.
+	// One format (doubles or singles): hero, highlights, then the details in tabs.
 	import { m } from './messages.ts';
 	import type { FindingText } from './messages.en.ts';
 	import { date, isNum, monthYear, num, pct, periodLabel, rating, signed } from './format.ts';
@@ -7,6 +7,10 @@
 	import ChartCard from './ChartCard.svelte';
 	import DataTable, { type Column } from './DataTable.svelte';
 	import Tips from './Tips.svelte';
+	import Hero from './Hero.svelte';
+	import Highlights from './Highlights.svelte';
+	import MatchFeed from './MatchFeed.svelte';
+	import { printing } from './print.svelte.ts';
 	import RatingChart from './charts/RatingChart.svelte';
 	import MonthlyChangeChart from './charts/MonthlyChangeChart.svelte';
 	import WinFormChart from './charts/WinFormChart.svelte';
@@ -67,121 +71,127 @@
 		{ label: M.col.ratingChange, value: (r) => signed(r.rating_gained), num: true }
 	];
 	const result = (won: boolean) => (won ? M.col.w : M.col.l);
-	const matchCols = (all: boolean): Column<Match>[] => {
+	const matchCols = (): Column<Match>[] => {
 		const cols: Column<Match>[] = [
 			{ label: M.col.date, value: (r) => date(r.date) },
 			{ label: M.col.result, value: (r) => result(r.won) },
 			{ label: M.col.score, value: (r) => r.game_scores }
 		];
 		if (doubles) cols.push({ label: M.col.partner, value: (r) => r.partner ?? '–' });
-		if (all) cols.push({ label: M.col.opponents, value: (r) => r.opponents });
 		cols.push({ label: M.col.oppRating, value: (r) => rating(r.opp_rating_avg), num: true });
-		if (all) cols.push({ label: M.col.gap, value: (r) => signed(r.rating_diff), num: true });
 		cols.push({ label: M.col.ratingChange, value: (r) => signed(r.rating_impact), num: true });
 		return cols;
 	};
-	const recent = $derived([...d.matches].reverse());
 	const periodsRows = $derived([...d.periods].reverse());
+
+	type TabId = 'overview' | 'form' | 'opponents' | 'partners' | 'matches' | 'details';
+	const tabs = $derived.by(() => {
+		const t: { id: TabId; label: string }[] = [
+			{ id: 'overview', label: M.ui.tabs.overview },
+			{ id: 'form', label: M.ui.tabs.form },
+			{ id: 'matches', label: M.ui.tabs.matches }
+		];
+		if (hasOppGroups || d.opponents.length) t.push({ id: 'opponents', label: M.ui.tabs.opponents });
+		t.push({ id: 'partners', label: doubles ? M.ui.tabs.partners : M.ui.tabs.games });
+		t.push({ id: 'details', label: M.ui.tabs.details });
+		return t;
+	});
+	let tab = $state<TabId>('overview');
+	const show = (id: TabId) => printing.all || tab === id;
 </script>
 
 <section>
-	<h2>{fmtName}</h2>
-	<div class="tiles">
-		{#each tiles as t (t.label)}
-			<div class="tile"><div class="lbl">{t.label}</div><div class="val">{t.value}</div><div class="sub">{t.sub}</div></div>
+	{#if printing.all}<h2>{fmtName}</h2>{/if}
+	<Hero {d} />
+	<Highlights {d} />
+
+	<div class="tabs" role="tablist">
+		{#each tabs as t (t.id)}
+			<button role="tab" aria-selected={tab === t.id} class:active={tab === t.id} onclick={() => (tab = t.id)}>{t.label}</button>
 		{/each}
 	</div>
 
-	<h3>{M.h.findings}</h3>
-	<ul class="findings">
-		{#each findings as f, i (i)}<li>{f}</li>{/each}
-	</ul>
-
-	<h3>{M.h.improve}</h3>
-	<Tips tips={d.tips} level={d.level} />
-
-	<h3>{M.h.rating}</h3>
-	{#if d.rating.length}
-		<ChartCard title={M.charts.rating(fmtName)} caption={M.charts.ratingCap}><RatingChart {d} /></ChartCard>
-	{/if}
-	{#if d.monthly_rating.length}
-		<ChartCard title={M.charts.monthly} caption={M.charts.monthlyCap}><MonthlyChangeChart {d} /></ChartCard>
-	{/if}
-
-	<h3>{M.h.form}</h3>
-	{#if d.win_form.length}
-		<ChartCard title={M.charts.winForm} caption={M.charts.winFormCap(s.rolling_window)}><WinFormChart {d} /></ChartCard>
-	{/if}
-	{#if d.monthly_points.length}
-		<ChartCard
-			title={M.charts.points}
-			caption={M.charts.pointsCap + (d.point_form_hits ? M.charts.pointsHits(d.point_form_hits) : '')}
-		>
-			<PointsChart {d} />
-		</ChartCard>
+	{#if show('overview')}
+		<div class="panel">
+			<h3 class="ptitle">{M.ui.tabs.overview}</h3>
+			<h3>{M.ui.workOn}</h3>
+			<Tips tips={d.tips} level={d.level} />
+			{#if d.rating.length}
+				<ChartCard title={M.charts.rating(fmtName)} caption={M.charts.ratingCap}><RatingChart {d} /></ChartCard>
+			{/if}
+			{#if findings.length}
+				<h3>{M.ui.insights}</h3>
+				<ul class="findings">
+					{#each findings as f, i (i)}<li>{f}</li>{/each}
+				</ul>
+			{/if}
+		</div>
 	{/if}
 
-	{#if hasOppGroups}
-		<h3>{M.h.opponents}</h3>
-		<p class="takeaway">{M.opponentVerdict(opp.verdict)}</p>
-		<ChartCard title={M.charts.oppResults} caption={M.charts.oppResultsCap}><OppResultsChart {d} /></ChartCard>
-		{#if opp.measure === 'rating_impact'}
-			<ChartCard title={M.charts.oppChange} caption={M.charts.oppChangeCap}><OppChangeChart {d} /></ChartCard>
-		{/if}
-		{#if d.matches.filter((x) => x.opp_rating_avg != null).length >= 5}
-			<ChartCard title={M.charts.oppTime} caption={M.charts.oppTimeCap}><OppTimeChart {d} /></ChartCard>
-		{/if}
-		<DataTable
-			rows={opp.groups}
-			columns={[
-				{ label: M.col.opponents, value: (r) => `${M.groups[r.group]} (${M.groupRanges[r.group]})` },
-				{ label: M.col.matches, value: (r) => r.matches, num: true },
-				{ label: M.col.winPct, value: (r) => pct(r.win_pct), num: true },
-				{ label: M.col.expWin, value: (r) => pct(r.exp_win_pct), num: true },
-				{ label: M.col.pointWin, value: (r) => pct(r.point_share), num: true },
-				{ label: M.col.avgChange, value: (r) => signed(r.avg_impact), num: true },
-				{ label: M.col.totalChange, value: (r) => signed(r.total_impact), num: true }
-			]}
-		/>
+	{#if show('form')}
+		<div class="panel">
+			<h3 class="ptitle">{M.ui.tabs.form}</h3>
+			{#if d.win_form.length}
+				<ChartCard title={M.charts.winForm} caption={M.charts.winFormCap(s.rolling_window)}><WinFormChart {d} /></ChartCard>
+			{/if}
+			{#if d.monthly_rating.length}
+				<ChartCard title={M.charts.monthly} caption={M.charts.monthlyCap}><MonthlyChangeChart {d} /></ChartCard>
+			{/if}
+			{#if d.monthly_points.length}
+				<ChartCard
+					title={M.charts.points}
+					caption={M.charts.pointsCap + (d.point_form_hits ? M.charts.pointsHits(d.point_form_hits) : '')}
+				>
+					<PointsChart {d} />
+				</ChartCard>
+			{/if}
+			<ChartCard title={M.charts.periods(period)} caption={M.charts.periodsCap(period)}><PeriodsChart {d} /></ChartCard>
+			<ChartCard title={M.charts.activity(period)} caption={M.charts.activityCap(period)}><ActivityChart {d} /></ChartCard>
+		</div>
 	{/if}
 
-	<h3>{M.h.byPeriod(period)}</h3>
-	<ChartCard title={M.charts.periods(period)} caption={M.charts.periodsCap(period)}><PeriodsChart {d} /></ChartCard>
-	<ChartCard title={M.charts.activity(period)} caption={M.charts.activityCap(period)}><ActivityChart {d} /></ChartCard>
-
-	<h3>{M.h.gamesPartners}</h3>
-	{#if d.margins.length}
-		<ChartCard title={M.charts.margins} caption={M.charts.marginsCap}><MarginsChart {d} /></ChartCard>
+	{#if show('matches')}
+		<div class="panel">
+			<h3 class="ptitle">{M.ui.tabs.matches}</h3>
+			<MatchFeed matches={d.matches} {doubles} />
+			<div class="grid2">
+				<div>
+					<h3>{M.h.gains}</h3>
+					<DataTable rows={d.best} columns={matchCols()} />
+				</div>
+				<div>
+					<h3>{M.h.losses}</h3>
+					<DataTable rows={d.worst} columns={matchCols()} />
+				</div>
+			</div>
+		</div>
 	{/if}
-	{#if d.partners.filter((p) => p.matches >= 2).length}
-		<ChartCard title={M.charts.partners} caption={M.charts.partnersCap}><PartnersChart {d} /></ChartCard>
-	{/if}
 
-	<h3>{M.h.evolution(period)}</h3>
-	<DataTable
-		rows={periodsRows}
-		columns={[
-			{ label: M.col.period(period), value: (r) => periodLabel(r.period_end, period) },
-			...(aggCols() as Column<(typeof periodsRows)[number]>[]),
-			{ label: M.col.ratingEnd, value: (r) => rating(r.rating_end), num: true }
-		]}
-	/>
-	<div class="grid2">
-		{#if doubles}
-			<div>
-				<h3>{M.h.partners}</h3>
+	{#if show('opponents') && tabs.some((t) => t.id === 'opponents')}
+		<div class="panel">
+			<h3 class="ptitle">{M.ui.tabs.opponents}</h3>
+			{#if hasOppGroups}
+				<p class="takeaway">{M.opponentVerdict(opp.verdict)}</p>
+				<ChartCard title={M.charts.oppResults} caption={M.charts.oppResultsCap}><OppResultsChart {d} /></ChartCard>
+				{#if opp.measure === 'rating_impact'}
+					<ChartCard title={M.charts.oppChange} caption={M.charts.oppChangeCap}><OppChangeChart {d} /></ChartCard>
+				{/if}
+				{#if d.matches.filter((x) => x.opp_rating_avg != null).length >= 5}
+					<ChartCard title={M.charts.oppTime} caption={M.charts.oppTimeCap}><OppTimeChart {d} /></ChartCard>
+				{/if}
 				<DataTable
-					rows={d.partners}
-					limit={15}
+					rows={opp.groups}
 					columns={[
-						{ label: M.col.partner, value: (r) => r.partner },
-						...(aggCols() as Column<(typeof d.partners)[number]>[]),
-						{ label: M.col.partnerRating, value: (r) => rating(r.partner_rating), num: true }
+						{ label: M.col.opponents, value: (r) => `${M.groups[r.group]} (${M.groupRanges[r.group]})` },
+						{ label: M.col.matches, value: (r) => r.matches, num: true },
+						{ label: M.col.winPct, value: (r) => pct(r.win_pct), num: true },
+						{ label: M.col.expWin, value: (r) => pct(r.exp_win_pct), num: true },
+						{ label: M.col.pointWin, value: (r) => pct(r.point_share), num: true },
+						{ label: M.col.avgChange, value: (r) => signed(r.avg_impact), num: true },
+						{ label: M.col.totalChange, value: (r) => signed(r.total_impact), num: true }
 					]}
 				/>
-			</div>
-		{/if}
-		<div>
+			{/if}
 			<h3>{M.h.mostFaced}</h3>
 			<DataTable
 				rows={d.opponents}
@@ -195,57 +205,120 @@
 				]}
 			/>
 		</div>
-	</div>
-	<div class="grid2">
-		<div>
-			<h3>{M.h.bySource}</h3>
+	{/if}
+
+	{#if show('partners')}
+		<div class="panel">
+			<h3 class="ptitle">{doubles ? M.ui.tabs.partners : M.ui.tabs.games}</h3>
+			{#if d.partners.filter((p) => p.matches >= 2).length}
+				<ChartCard title={M.charts.partners} caption={M.charts.partnersCap}><PartnersChart {d} /></ChartCard>
+			{/if}
+			{#if doubles}
+				<h3>{M.h.partners}</h3>
+				<DataTable
+					rows={d.partners}
+					limit={15}
+					columns={[
+						{ label: M.col.partner, value: (r) => r.partner },
+						...(aggCols() as Column<(typeof d.partners)[number]>[]),
+						{ label: M.col.partnerRating, value: (r) => rating(r.partner_rating), num: true }
+					]}
+				/>
+			{/if}
+			{#if d.margins.length}
+				<ChartCard title={M.charts.margins} caption={M.charts.marginsCap}><MarginsChart {d} /></ChartCard>
+			{/if}
+			<p class="takeaway">{M.gameDetails(c)}</p>
+		</div>
+	{/if}
+
+	{#if show('details')}
+		<div class="panel">
+			<h3 class="ptitle">{M.ui.tabs.details}</h3>
+			<h3>{M.ui.allNumbers}</h3>
+			<div class="tiles">
+				{#each tiles as t (t.label)}
+					<div class="tile"><div class="lbl">{t.label}</div><div class="val">{t.value}</div><div class="sub">{t.sub}</div></div>
+				{/each}
+			</div>
+			<h3>{M.h.evolution(period)}</h3>
 			<DataTable
-				rows={d.by_source}
+				rows={periodsRows}
 				columns={[
-					{ label: M.col.source, value: (r) => M.sources[r.source] ?? r.source },
-					...(aggCols() as Column<(typeof d.by_source)[number]>[])
+					{ label: M.col.period(period), value: (r) => periodLabel(r.period_end, period) },
+					...(aggCols() as Column<(typeof periodsRows)[number]>[]),
+					{ label: M.col.ratingEnd, value: (r) => rating(r.rating_end), num: true }
 				]}
 			/>
+			<div class="grid2">
+				<div>
+					<h3>{M.h.bySource}</h3>
+					<DataTable
+						rows={d.by_source}
+						columns={[
+							{ label: M.col.source, value: (r) => M.sources[r.source] ?? r.source },
+							...(aggCols() as Column<(typeof d.by_source)[number]>[])
+						]}
+					/>
+				</div>
+				<div>
+					<h3>{M.h.byRest}</h3>
+					<DataTable
+						rows={d.by_rest}
+						columns={[
+							{ label: M.col.rest, value: (r) => M.rest[r.rest] ?? r.rest },
+							...(aggCols() as Column<(typeof d.by_rest)[number]>[])
+						]}
+					/>
+				</div>
+			</div>
 		</div>
-		<div>
-			<h3>{M.h.byRest}</h3>
-			<DataTable
-				rows={d.by_rest}
-				columns={[
-					{ label: M.col.rest, value: (r) => M.rest[r.rest] ?? r.rest },
-					...(aggCols() as Column<(typeof d.by_rest)[number]>[])
-				]}
-			/>
-		</div>
-	</div>
-	<div class="grid2">
-		<div>
-			<h3>{M.h.gains}</h3>
-			<DataTable rows={d.best} columns={matchCols(false)} />
-		</div>
-		<div>
-			<h3>{M.h.losses}</h3>
-			<DataTable rows={d.worst} columns={matchCols(false)} />
-		</div>
-	</div>
-	<h3>{M.h.gameDetails}</h3>
-	<p>{M.gameDetails(c)}</p>
-	<details>
-		<summary>{M.h.allMatches}</summary>
-		<DataTable rows={recent} columns={matchCols(true)} limit={10_000} />
-	</details>
+	{/if}
 </section>
 
 <style>
+	section {
+		margin-top: 16px;
+	}
 	h2 {
 		font-size: 23px;
-		margin: 44px 0 14px;
-		padding-top: 18px;
-		border-top: 1px solid var(--line);
+		margin: 32px 0 14px;
 	}
 	h3 {
 		font-size: 18px;
-		margin: 36px 0 10px;
+		margin: 28px 0 10px;
+	}
+	.tabs {
+		position: sticky;
+		top: 49px;
+		z-index: 5;
+		display: flex;
+		gap: 4px;
+		overflow-x: auto;
+		margin: 28px 0 0;
+		padding-top: 4px;
+		background: var(--bg);
+		border-bottom: 1px solid var(--line);
+		scrollbar-width: none;
+	}
+	.tabs button {
+		flex: none;
+		background: none;
+		color: var(--ink2);
+		border-radius: 0;
+		padding: 10px 14px;
+		border-bottom: 3px solid transparent;
+		font-weight: 600;
+	}
+	.tabs button:hover {
+		color: var(--ink);
+	}
+	.tabs button.active {
+		color: var(--accent);
+		border-bottom-color: var(--accent);
+	}
+	.ptitle {
+		display: none;
 	}
 	.tiles {
 		display: grid;
@@ -264,28 +337,43 @@
 		color: var(--ink2);
 	}
 	.val {
-		font-size: 26px;
+		font-size: 22px;
 		font-weight: 650;
+	}
+	.findings {
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: 12px;
+		padding: 12px 16px 12px 34px;
+		margin: 0;
 	}
 	.findings li {
 		margin: 6px 0;
 	}
 	.takeaway {
 		max-width: 900px;
-		margin: 0 0 8px;
+		margin: 16px 0 8px;
 	}
 	.grid2 {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
 		gap: 4px 16px;
 	}
-	details {
-		margin: 16px 0;
+	@media (max-width: 640px) {
+		.tabs {
+			position: static;
+		}
 	}
-	summary {
-		cursor: pointer;
-		font-weight: 600;
-		font-size: 16px;
-		margin-bottom: 8px;
+	@media print {
+		.tabs {
+			display: none;
+		}
+		.ptitle {
+			display: block;
+			font-size: 20px;
+			margin-top: 32px;
+			padding-top: 12px;
+			border-top: 1px solid var(--line);
+		}
 	}
 </style>
