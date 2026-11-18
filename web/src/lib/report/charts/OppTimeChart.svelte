@@ -6,7 +6,7 @@
 	import { m } from '../messages.ts';
 	import { date, num, rating, timeTicks } from '../format.ts';
 	import type { FormatData } from '../types.ts';
-	import { TEAL, FAINT, ORANGE, PAD, toDate } from './common.ts';
+	import { TEAL, FAINT, ORANGE, PAD, toDate, timeTickCount } from './common.ts';
 	import Legend from './Legend.svelte';
 
 	let { d }: { d: FormatData } = $props();
@@ -39,9 +39,10 @@
 		padding={PAD}
 		tooltipContext={{ mode: 'quadtree-x' }}
 	>
+		{#snippet children({ context })}
 		<Layer type="svg">
 			<Axis placement="left" grid format={(v: number) => num(v, 2)} ticks={5} />
-			<Axis placement="bottom" rule format={timeTicks(rows[0].date, rows[rows.length - 1].date)} ticks={6} />
+			<Axis placement="bottom" rule format={timeTicks(rows[0].date, rows[rows.length - 1].date)} ticks={timeTickCount(context.width)} />
 			<Points y="opp_rating_avg">
 				{#snippet children({ points })}
 					{#each points as p, i (i)}<Circle cx={p.x} cy={p.y} r={3} fill={FAINT} />{/each}
@@ -61,6 +62,7 @@
 				</Tooltip.List>
 			{/snippet}
 		</Tooltip.Root>
+		{/snippet}
 	</Chart>
 </div>
 

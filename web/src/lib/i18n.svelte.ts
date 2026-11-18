@@ -42,11 +42,31 @@ const en = {
 	step3:
 		'Click the <b>⟳ Sync DUPR</b> bookmark. Your matches are downloaded and you come back here to your report.',
 	privacy:
-		"You log in on DUPR's own site: your password never goes through this page. Your data stays in your browser. It is never uploaded anywhere. Works on a computer (Chrome, Edge, Firefox, Safari).",
+		"You log in on DUPR's own site: your password never goes through this page. Your data stays in your browser. It is never uploaded anywhere.",
 	dragAlert:
 		'Drag this button to your bookmarks bar, then click it while you are on dashboard.dupr.com.',
+	devComputer: 'Computer',
+	devIphone: 'iPhone / iPad',
+	devAndroid: 'Android',
+	copyStep: '<b>Once:</b> tap this button to copy the bookmark code.',
+	copyBtn: '⧉ Copy the code',
+	copied: '✓ Copied',
+	copyManual: 'Copying was blocked. Select all the text below and copy it.',
+	iosStep2:
+		'<b>Once, in Safari:</b> bookmark this page (Share button, then <b>Add Bookmark</b>). Open your bookmarks, tap <b>Edit</b>, tap the new bookmark, rename it <b>Sync DUPR</b> and replace its address with the code you copied.',
+	iosStep3:
+		'In Safari, type <b>dashboard.dupr.com</b> in the address bar and log in. Open your bookmarks (book icon) and tap <b>Sync DUPR</b>. Your matches are downloaded and you come back here.',
+	androidStep2:
+		'<b>Once, in Chrome:</b> bookmark this page (⋮ menu, then ☆). Open ⋮ → <b>Bookmarks</b>, tap ⋮ next to the new bookmark, then <b>Edit</b>. Name it <b>Sync DUPR</b> and paste the code you copied as its URL.',
+	androidStep3:
+		'In Chrome, type <b>dashboard.dupr.com</b> in the address bar and log in. Then tap the address bar, type <b>Sync DUPR</b> and tap the bookmark in the suggestions <span class="small">(opening it from the bookmarks list does not work in Chrome)</span>. Your matches are downloaded and you come back here.',
+	tipIphone:
+		'<b>Already set up on your Mac?</b> If Safari on your Mac and iPhone use the same Apple account, the <b>Sync DUPR</b> bookmark is already on your iPhone. Skip to the last step.',
+	tipAndroid:
+		'<b>Already set up on your computer?</b> If you are signed in to Chrome with the same Google account on both, the <b>Sync DUPR</b> bookmark is already on your phone. Skip to the last step.',
 	reportTitle: 'PickleStats',
 	print: 'Print / save as PDF',
+	printShort: 'PDF',
 	back: 'Back',
 	building: 'Building your report…',
 	starting: 'Starting…',
@@ -56,7 +76,7 @@ const en = {
 	done: 'Done',
 	failed: 'Could not build the report',
 	syncedOn: (date: string, time: string) =>
-		`Synced on ${date} at ${time}. To update it, click the bookmark on dupr.com again.`
+		`Synced on ${date} at ${time}. To update it, use the Sync DUPR bookmark on dupr.com again.`
 };
 
 export type Key = keyof typeof en;
@@ -101,11 +121,31 @@ const fr: typeof en = {
 	step3:
 		'Clique sur le favori <b>⟳ Sync DUPR</b>. Tes matchs sont téléchargés et tu reviens ici pour voir ton rapport.',
 	privacy:
-		'Tu te connectes sur le site de DUPR : ton mot de passe ne passe jamais par cette page. Tes données restent dans ton navigateur et ne sont jamais envoyées ailleurs. Fonctionne sur ordinateur (Chrome, Edge, Firefox, Safari).',
+		'Tu te connectes sur le site de DUPR, ton mot de passe ne passe jamais par cette page. Tes données restent dans ton navigateur et ne sont jamais envoyées ailleurs.',
 	dragAlert:
 		'Fais glisser ce bouton dans ta barre de favoris, puis clique dessus quand tu es sur dashboard.dupr.com.',
+	devComputer: 'Ordinateur',
+	devIphone: 'iPhone / iPad',
+	devAndroid: 'Android',
+	copyStep: '<b>Une seule fois.</b> Touche ce bouton pour copier le code du favori.',
+	copyBtn: '⧉ Copier le code',
+	copied: '✓ Copié',
+	copyManual: 'La copie a été bloquée. Sélectionne tout le texte ci-dessous et copie-le.',
+	iosStep2:
+		'<b>Une seule fois, dans Safari.</b> Ajoute cette page aux signets (bouton Partager, puis <b>Ajouter un signet</b>). Ouvre ensuite tes signets, touche <b>Modifier</b>, touche le nouveau signet, renomme-le <b>Sync DUPR</b> et remplace son adresse par le code copié.',
+	iosStep3:
+		'Dans Safari, tape <b>dashboard.dupr.com</b> dans la barre d\'adresse et connecte-toi. Ouvre ensuite tes signets (icône livre) et touche <b>Sync DUPR</b>. Tes matchs sont téléchargés et tu reviens ici.',
+	androidStep2:
+		'<b>Une seule fois, dans Chrome.</b> Ajoute cette page aux favoris (menu ⋮, puis ☆). Ouvre ⋮ → <b>Favoris</b>, touche ⋮ à côté du nouveau favori, puis <b>Modifier</b>. Nomme-le <b>Sync DUPR</b> et colle le code copié comme URL.',
+	androidStep3:
+		'Dans Chrome, tape <b>dashboard.dupr.com</b> dans la barre d\'adresse et connecte-toi. Touche ensuite la barre d\'adresse, tape <b>Sync DUPR</b> et touche le favori dans les suggestions <span class="small">(l\'ouvrir depuis la liste des favoris ne marche pas dans Chrome)</span>. Tes matchs sont téléchargés et tu reviens ici.',
+	tipIphone:
+		'<b>Déjà installé sur ton Mac ?</b> Si Safari utilise le même compte Apple sur ton Mac et ton iPhone, le signet <b>Sync DUPR</b> est déjà sur ton iPhone. Passe directement à la dernière étape.',
+	tipAndroid:
+		'<b>Déjà installé sur ton ordinateur ?</b> Si tu es connecté à Chrome avec le même compte Google sur les deux, le favori <b>Sync DUPR</b> est déjà sur ton téléphone. Passe directement à la dernière étape.',
 	reportTitle: 'PickleStats',
 	print: 'Imprimer / PDF',
+	printShort: 'PDF',
 	back: 'Retour',
 	building: 'Création de ton rapport…',
 	starting: 'Démarrage…',
@@ -115,7 +155,7 @@ const fr: typeof en = {
 	done: 'Terminé',
 	failed: 'Impossible de créer le rapport',
 	syncedOn: (date: string, time: string) =>
-		`Synchronisé le ${date} à ${time}. Pour le mettre à jour, clique à nouveau sur le favori sur dupr.com.`
+		`Synchronisé le ${date} à ${time}. Pour le mettre à jour, utilise à nouveau le favori Sync DUPR sur dupr.com.`
 };
 
 const I18N = { en, fr };

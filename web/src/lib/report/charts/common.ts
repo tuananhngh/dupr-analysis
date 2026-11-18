@@ -25,6 +25,9 @@ export function rangeStart(last: Date, range: '3m' | '6m' | '1y' | 'all'): Date 
 	return d;
 }
 
+/** How many date labels fit on a time axis: about one per `px` pixels, between 2 and 6. */
+export const timeTickCount = (width: number, px = 80) => Math.max(2, Math.min(6, Math.floor(width / px)));
+
 /** Every k-th category label so they don't overlap: about one label per `px` pixels of width. */
 export function thinTicks<T>(values: T[], width: number, px = 64): T[] {
 	const k = Math.max(1, Math.ceil(values.length / Math.max(1, Math.floor(width / px))));
