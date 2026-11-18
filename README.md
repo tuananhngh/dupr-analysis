@@ -5,7 +5,7 @@ Performance analysis for DUPR players.
 See how your pickleball game evolves: your DUPR rating over time, your form, your results against what the
 ratings predict, your partners, your opponents, and concrete things to work on.
 
-**👉 Open the app: https://tuananhngh.github.io/dupr-analysis/**
+**👉 Open the app: https://tuananhngh.github.io/picklestats/**
 
 Nothing to install. It works in your browser on a computer (Chrome, Edge, Firefox or Safari).
 

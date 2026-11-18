@@ -11,7 +11,7 @@ export default defineConfig({
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
 			adapter: adapter(),
-			// GitHub Pages serves the site under /dupr-analysis; the deploy workflow sets BASE_PATH.
+			// GitHub Pages serves the site under /picklestats; the deploy workflow sets BASE_PATH.
 			paths: { base: (process.env.BASE_PATH ?? '') as '' | `/${string}` }
 		})
 	],
