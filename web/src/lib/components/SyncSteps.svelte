@@ -54,6 +54,10 @@
 			>
 		{/each}
 	</div>
+	{#if device !== 'computer'}
+		<!-- A bookmark made on a computer syncs to the phone when the same browser account is used. -->
+		<p class="tip">{@html t(device === 'iphone' ? 'tipIphone' : 'tipAndroid')}</p>
+	{/if}
 	<ol class="steps">
 		{#if device === 'computer'}
 			<li>
@@ -187,6 +191,14 @@
 	button.bm {
 		border: 0;
 		cursor: pointer;
+	}
+	.tip {
+		margin: 0 0 14px;
+		padding: 12px 16px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
 	}
 	@media (max-width: 760px) {
 		ol {

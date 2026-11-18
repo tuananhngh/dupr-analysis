@@ -23,7 +23,7 @@
   const box = document.createElement('div');
   box.id = 'dupra-panel';
   box.style.cssText = 'position:fixed;left:12px;right:12px;top:12px;z-index:2147483647;max-width:420px;margin:0 auto;'
-    + 'background:#fcfcfb;color:#0b0b0b;border:1px solid #2a78d6;border-radius:12px;padding:16px 18px;'
+    + 'background:#fcfcfb;color:#0b0b0b;border:1px solid #0b7a7c;border-radius:12px;padding:16px 18px;'
     + 'font:15px/1.5 system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.25)';
   box.innerHTML = '<b>DUPR Analysis: sync</b><div id="dupra-msg" style="margin-top:6px">Starting…</div>';
   document.body.appendChild(box);
@@ -32,7 +32,7 @@
     say(t);
     const b = document.createElement('button');
     b.textContent = 'Close';
-    b.style.cssText = 'margin-top:10px;padding:6px 14px;border-radius:8px;border:1px solid #2a78d6;background:none;color:#2a78d6;font:inherit;font-weight:600;cursor:pointer';
+    b.style.cssText = 'margin-top:10px;padding:6px 14px;border-radius:8px;border:1px solid #0b7a7c;background:none;color:#0b7a7c;font:inherit;font-weight:600;cursor:pointer';
     b.onclick = () => box.remove();
     box.appendChild(b);
   };
