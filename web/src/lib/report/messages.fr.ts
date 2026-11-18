@@ -467,9 +467,10 @@ export const fr: Messages = {
 		below: 'En dessous',
 		pointsTip: (v, gap) => `${v} des points gagnés (${gap} vs attendu)`,
 		ratingThatMonth: (v) => `note ce mois-là ${v}`,
-		pointsCap: 'Point = points que tu as gagnés, tiret = ce que prévoient les notes. Bleu-vert = au-dessus, orange = en dessous.',
+		pointsCap:
+			'Le rond est la part des points que tu as gagnés dans le mois. Le trait est la part que ta note laissait prévoir. Bleu-vert, tu fais mieux que prévu. Orange, moins bien.',
 		pointsHits: (h) =>
-			` Les mois bleu-vert ont fait monter ta note ${h.up} fois sur ${h.above} ; les mois orange l’ont fait baisser ${h.down} fois sur ${h.below}.`,
+			` Sur ${h.above} mois bleu-vert, ta note a monté ${h.up} fois. Sur ${h.below} mois orange, elle a baissé ${h.down} fois.`,
 		oppResults: '% de victoires selon la force des adversaires : réel vs attendu',
 		oppAxis: 'Note moyenne des adversaires par rapport à la tienne',
 		oppResultsCap:

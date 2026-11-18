@@ -469,9 +469,10 @@ export const en = {
 		below: 'Below',
 		pointsTip: (v: string, gap: string) => `won ${v} of points (${gap} vs expected)`,
 		ratingThatMonth: (v: string) => `rating that month ${v}`,
-		pointsCap: 'Dot = points you won, dash = what the ratings predict. Teal = above, orange = below.',
+		pointsCap:
+			'The dot is the share of points you won that month. The dash is the share your rating predicted. Teal means better than predicted, orange worse.',
 		pointsHits: (h: { up: number; above: number; down: number; below: number }) =>
-			` Teal months raised your rating ${h.up} times out of ${h.above}; orange months lowered it ${h.down} times out of ${h.below}.`,
+			` In ${h.above} teal months your rating went up ${h.up} times. In ${h.below} orange months it went down ${h.down} times.`,
 		oppResults: 'Win % by opponent strength: actual vs expected',
 		oppAxis: "Opponents' average rating compared with yours",
 		oppResultsCap:
